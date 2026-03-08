@@ -9,10 +9,6 @@ class Settings(BaseSettings):
 
     model_name: str = "openai:gpt-4o"
     database_url: str = "sqlite+aiosqlite:///data/tickets.db"
-    logfire_enabled: bool = False
-    logfire_token: str = ""
-    logfire_org: str = ""
-    logfire_project: str = ""
     openai_api_key: str = ""
 
 

@@ -73,14 +73,18 @@
   .detail-row { display: none; }
   .detail-row.active { display: table-row; }
   .detail-row td { background: #f8f9fa; word-wrap: break-word; }
-  .trace-link { color: #4361ee; text-decoration: none; font-size: 0.85rem; }
-  .trace-link.disabled { color: #ccc; pointer-events: none; }
+  .about { background: #eef2ff; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; font-size: 0.9rem; color: #444; line-height: 1.5; }
+  .about p { margin: 0; }
 </style>
 </head>
 <body>
 <div class="container">
   <h1>Hospitality Integration Support</h1>
   <p class="subtitle">AI-powered integration issue resolution</p>
+
+  <div class="about">
+    <p>This tool helps support engineers and CSM reps diagnose issues between Property Management Systems (Mews, Cloudbeds, Hostaway) and our guest experience platform. Describe a problem, and an AI agent searches integration docs, finds similar past tickets, and returns a structured resolution with priority and confidence level.</p>
+  </div>
 
   <div class="tabs">
     <button class="tab active" data-tab="submit">Submit Ticket</button>
@@ -181,10 +185,6 @@ document.getElementById('ticket-form').addEventListener('submit', async (e) => {
 });
 
 function renderResult(t) {
-  const traceLink = t.trace_id
-    ? `<a class="trace-link" href="#" title="Logfire trace">View in Logfire</a>`
-    : `<span class="trace-link disabled">Trace link (enable Logfire)</span>`;
-
   const similarHtml = (t.similar_ticket_ids && t.similar_ticket_ids.length)
     ? `<div class="similar-section">
         <div class="similar-header" onclick="this.parentElement.classList.toggle('open')">
@@ -206,7 +206,6 @@ function renderResult(t) {
       <div class="resolution-text">${t.ai_resolution_suggestion}</div>
       <div class="meta">
         <span>Docs: ${(t.source_docs_referenced || []).join(', ') || 'none'}</span>
-        ${traceLink}
       </div>
       ${similarHtml}
     </div>`;
@@ -251,7 +250,7 @@ async function loadTickets() {
     container.innerHTML = `
       <table class="tickets-table">
         <thead><tr>
-          <th>#</th><th>Subject</th><th>PMS</th><th>Category</th><th>Priority</th><th>Confidence</th><th>Trace</th>
+          <th>#</th><th>Subject</th><th>PMS</th><th>Category</th><th>Priority</th><th>Confidence</th>
         </tr></thead>
         <tbody>
           ${tickets.map(t => `<tr>
@@ -261,7 +260,6 @@ async function loadTickets() {
             <td><span class="badge category">${t.ai_category || '-'}</span></td>
             <td><span class="badge priority-${t.ai_priority}">${t.ai_priority || '-'}</span></td>
             <td><span class="badge confidence-${t.ai_confidence}">${t.ai_confidence || '-'}</span></td>
-            <td>${t.trace_id ? '<a class="trace-link" href="#">View</a>' : '<span class="trace-link disabled">—</span>'}</td>
           </tr>`).join('')}
         </tbody>
       </table>`;

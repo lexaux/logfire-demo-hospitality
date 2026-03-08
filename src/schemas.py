@@ -29,11 +29,13 @@ class Category(StrEnum):
 
 CATEGORY_DESCRIPTIONS: dict[Category, str] = {
     Category.BILLING: "billing/payment issue",
-    Category.SYNC_ISSUE: "data sync problem",
-    Category.CONFIG: "configuration error",
-    Category.NOT_SUPPORTED: "feature not available in integration",
-    Category.BUG: "known bug",
-    Category.UNKNOWN: "cannot determine from available docs",
+    Category.SYNC_ISSUE: "data flow missing, delayed, or corrupted — not a documented bug",
+    Category.CONFIG: (
+        "feature exists but needs user-side setup; docs say 'manual config' or 'requires setup'"
+    ),
+    Category.NOT_SUPPORTED: "listed as Not Supported in docs, or not mentioned in docs at all",
+    Category.BUG: "matches a documented known bug (BUG-xxx); always cite the bug ID",
+    Category.UNKNOWN: "ambiguous and no relevant docs, bugs, or similar tickets found",
 }
 
 
@@ -44,9 +46,11 @@ class Priority(StrEnum):
 
 
 PRIORITY_DESCRIPTIONS: dict[Priority, str] = {
-    Priority.P1: "critical/data loss",
-    Priority.P2: "important/workaround exists",
-    Priority.P3: "minor/cosmetic",
+    Priority.P1: (
+        "financial impact, data loss, or complete outage affecting multiple guests/properties"
+    ),
+    Priority.P2: "feature degradation with workaround, delayed sync, or single-property scope",
+    Priority.P3: "feature not supported, informational inquiry, or cosmetic issue",
 }
 
 
@@ -122,7 +126,6 @@ class TicketResponse(BaseModel):
     source_docs_referenced: list[str] | None = None
     similar_ticket_ids: list[int] | None = None
     escalation_recommended: bool | None = None
-    trace_id: str | None = None
 
 
 # --- Knowledge base validation ---

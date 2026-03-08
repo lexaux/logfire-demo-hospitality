@@ -32,6 +32,3 @@ class Ticket(Base):
 
     # For seeded resolved tickets
     resolution_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-
-    # Logfire trace link
-    trace_id: Mapped[str | None] = mapped_column(String(64), nullable=True)

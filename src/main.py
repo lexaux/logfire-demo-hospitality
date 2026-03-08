@@ -9,7 +9,6 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from src.agent import TicketDeps, support_agent
-from src.config import settings
 from src.database import async_session, init_db
 from src.knowledge import build_doc_chunks, load_integration_docs
 from src.models import Ticket
@@ -143,7 +142,6 @@ async def get_tickets_by_ids(ids: str):
 async def get_config():
     return {
         "pms_systems": ["mews", "cloudbeds", "hostaway"],
-        "logfire_enabled": settings.logfire_enabled,
     }
 
 

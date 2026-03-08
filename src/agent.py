@@ -22,6 +22,8 @@ When given a support ticket, you must:
 2. Look for similar previously resolved tickets
 3. If the issue is high priority (P1) or you have low confidence, get escalation context
 
+Pick the most specific category. Follow the field descriptions in the output schema closely.
+
 Set escalation_recommended to true if priority is P1, confidence is low, or the system is degraded.
 
 Be precise. Cite specific doc sections and bug IDs when available. \

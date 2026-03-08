@@ -1,4 +1,4 @@
-.PHONY: help run format check test reset-db
+.PHONY: help run format check test evals reset-db
 .DEFAULT_GOAL := help
 
 help: ## Show available commands
@@ -17,6 +17,9 @@ check: ## Lint + format check
 
 test: ## Run smoke tests
 	uv run pytest tests/ -v
+
+evals: ## Run offline evals (MODEL=openai:gpt-4o-mini to override)
+	MODEL_NAME=$(or $(MODEL),$(MODEL_NAME),openai:gpt-4o) uv run python -m evals.run_evals
 
 reset-db: ## Reset database (confirms first, re-seeds on next run)
 	@echo "This will delete the database and all submitted tickets."
