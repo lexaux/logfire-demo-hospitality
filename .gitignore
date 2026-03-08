@@ -1,0 +1,13 @@
+data/*.db
+.env
+__pycache__/
+.venv/
+*.pyc
+.ruff_cache/
+.pytest_cache/
+/.idea/inspectionProfiles/profiles_settings.xml
+/.idea/.gitignore
+/.idea/demoapp.iml
+/.idea/misc.xml
+/.idea/modules.xml
+/.idea/vcs.xml

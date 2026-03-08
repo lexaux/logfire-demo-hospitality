@@ -1,0 +1,163 @@
+from __future__ import annotations
+
+from enum import StrEnum
+from typing import Annotated
+
+from pydantic import BaseModel as _BaseModel
+from pydantic import Field
+
+
+class BaseModel(_BaseModel):
+    model_config = {"from_attributes": True}
+
+
+# --- Enums with descriptions ---
+class PmsSystem(StrEnum):
+    MEWS = "mews"
+    CLOUDBEDS = "cloudbeds"
+    HOSTAWAY = "hostaway"
+
+
+class Category(StrEnum):
+    BILLING = "billing"
+    SYNC_ISSUE = "sync_issue"
+    CONFIG = "config"
+    NOT_SUPPORTED = "not_supported"
+    BUG = "bug"
+    UNKNOWN = "unknown"
+
+
+CATEGORY_DESCRIPTIONS: dict[Category, str] = {
+    Category.BILLING: "billing/payment issue",
+    Category.SYNC_ISSUE: "data sync problem",
+    Category.CONFIG: "configuration error",
+    Category.NOT_SUPPORTED: "feature not available in integration",
+    Category.BUG: "known bug",
+    Category.UNKNOWN: "cannot determine from available docs",
+}
+
+
+class Priority(StrEnum):
+    P1 = "P1"
+    P2 = "P2"
+    P3 = "P3"
+
+
+PRIORITY_DESCRIPTIONS: dict[Priority, str] = {
+    Priority.P1: "critical/data loss",
+    Priority.P2: "important/workaround exists",
+    Priority.P3: "minor/cosmetic",
+}
+
+
+class Confidence(StrEnum):
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
+
+CONFIDENCE_DESCRIPTIONS: dict[Confidence, str] = {
+    Confidence.HIGH: "clear docs/precedent",
+    Confidence.MEDIUM: "partial match",
+    Confidence.LOW: "ambiguous/undocumented",
+}
+
+
+class TicketStatus(StrEnum):
+    OPEN = "open"
+    RESOLVED = "resolved"
+    ESCALATED = "escalated"
+
+
+def _enum_description(enum_cls: type[StrEnum], descriptions: dict) -> str:
+    return ", ".join(f"{m.value} ({descriptions[m]})" for m in enum_cls)
+
+
+# Annotated types — description defined once, reused across any model field
+CategoryField = Annotated[
+    Category, Field(description=_enum_description(Category, CATEGORY_DESCRIPTIONS))
+]
+PriorityField = Annotated[
+    Priority, Field(description=_enum_description(Priority, PRIORITY_DESCRIPTIONS))
+]
+ConfidenceField = Annotated[
+    Confidence, Field(description=_enum_description(Confidence, CONFIDENCE_DESCRIPTIONS))
+]
+
+
+# --- Agent output type ---
+class TicketResolution(BaseModel):
+    category: CategoryField
+    priority: PriorityField
+    confidence: ConfidenceField
+    resolution_suggestion: str = Field(description="2-4 sentence resolution guidance")
+    source_docs_referenced: list[str] = Field(
+        default_factory=list, description="List of doc names used"
+    )
+    similar_ticket_ids: list[int] = Field(
+        default_factory=list, description="IDs of similar resolved tickets"
+    )
+    escalation_recommended: bool = Field(
+        default=False, description="Whether this ticket should be escalated"
+    )
+
+
+# --- API request/response ---
+class TicketCreate(BaseModel):
+    subject: str = Field(min_length=5, max_length=256)
+    description: str = Field(min_length=10)
+    pms_system: PmsSystem
+
+
+class TicketResponse(BaseModel):
+    id: int
+    subject: str
+    description: str
+    pms_system: PmsSystem
+    status: TicketStatus
+    ai_category: Category | None = None
+    ai_priority: Priority | None = None
+    ai_confidence: Confidence | None = None
+    ai_resolution_suggestion: str | None = None
+    source_docs_referenced: list[str] | None = None
+    similar_ticket_ids: list[int] | None = None
+    escalation_recommended: bool | None = None
+    trace_id: str | None = None
+
+
+# --- Knowledge base validation ---
+class DocSection(BaseModel):
+    title: str
+    items: list[str]
+
+
+class IntegrationDoc(BaseModel):
+    system: PmsSystem
+    display_name: str
+    supported: list[DocSection] = Field(default_factory=list)
+    partial: list[DocSection] = Field(default_factory=list)
+    not_supported: list[DocSection] = Field(default_factory=list)
+    known_bugs: list[DocSection] = Field(default_factory=list)
+
+
+class EscalationEntry(BaseModel):
+    pms_system: PmsSystem
+    sla_hours: int
+    owner_team: str
+    currently_degraded: bool = False
+    escalation_notes: str = ""
+
+
+class SeededTicket(BaseModel):
+    subject: str
+    description: str
+    pms_system: PmsSystem
+    status: TicketStatus = TicketStatus.RESOLVED
+    ai_category: Category
+    ai_priority: Priority
+    ai_confidence: Confidence
+    ai_resolution_suggestion: str
+    resolution_notes: str
+    source_docs_referenced: list[str] = Field(default_factory=list)
+    similar_ticket_ids: list[int] = Field(default_factory=list)
+    escalation_recommended: bool = False

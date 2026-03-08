@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hospitality Integration Support</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f7fa; color: #1a1a2e; line-height: 1.6; }
+  .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+  h1 { font-size: 1.5rem; margin-bottom: 4px; }
+  .subtitle { color: #666; font-size: 0.9rem; margin-bottom: 20px; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 0; margin-bottom: 20px; border-bottom: 2px solid #e0e0e0; }
+  .tab { padding: 10px 24px; cursor: pointer; border: none; background: none; font-size: 0.95rem; color: #666; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+  .tab.active { color: #4361ee; border-bottom-color: #4361ee; font-weight: 600; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Form */
+  .form-group { margin-bottom: 16px; }
+  label { display: block; font-weight: 600; margin-bottom: 4px; font-size: 0.9rem; }
+  select, input, textarea { width: 100%; padding: 10px 12px; border: 1px solid #d0d5dd; border-radius: 8px; font-size: 0.95rem; font-family: inherit; }
+  textarea { min-height: 100px; resize: vertical; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  button.submit { background: #4361ee; color: white; border: none; padding: 12px 28px; border-radius: 8px; font-size: 1rem; cursor: pointer; font-weight: 600; }
+  button.submit:hover { background: #3a56d4; }
+  button.submit:disabled { background: #a0a0a0; cursor: not-allowed; }
+
+  /* Result card */
+  .result-card { background: white; border-radius: 12px; padding: 24px; margin-top: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  .result-card h3 { margin-bottom: 12px; }
+  .badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .badge { padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
+  .badge.category { background: #e8f0fe; color: #1a73e8; }
+  .badge.priority-P1 { background: #fce8e6; color: #d93025; }
+  .badge.priority-P2 { background: #fef7e0; color: #e37400; }
+  .badge.priority-P3 { background: #e6f4ea; color: #137333; }
+  .badge.confidence-high { background: #e6f4ea; color: #137333; }
+  .badge.confidence-medium { background: #fef7e0; color: #e37400; }
+  .badge.confidence-low { background: #fce8e6; color: #d93025; }
+  .badge.escalation { background: #fce8e6; color: #d93025; }
+  .resolution-text { background: #f8f9fa; padding: 16px; border-radius: 8px; margin-bottom: 12px; }
+  .meta { font-size: 0.85rem; color: #666; }
+  .meta span { margin-right: 16px; }
+
+  /* Table */
+  .tickets-table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); table-layout: fixed; }
+  .tickets-table th { background: #f8f9fa; padding: 12px 16px; text-align: left; font-size: 0.85rem; color: #666; }
+  .tickets-table td { padding: 12px 16px; border-top: 1px solid #f0f0f0; font-size: 0.9rem; }
+  .tickets-table tr:hover { background: #f8f9fa; }
+  .empty-state { text-align: center; padding: 40px; color: #999; }
+
+  /* Loading */
+  .loading { display: none; align-items: center; gap: 8px; padding: 20px; }
+  .loading.active { display: flex; }
+  .spinner { width: 20px; height: 20px; border: 3px solid #e0e0e0; border-top-color: #4361ee; border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Similar tickets */
+  .similar-section { margin-top: 12px; border-top: 1px solid #e0e0e0; padding-top: 8px; }
+  .similar-header { cursor: pointer; font-weight: 600; font-size: 0.9rem; color: #4361ee; padding: 4px 0; }
+  .similar-header::before { content: '\25b6  '; font-size: 0.7rem; }
+  .similar-section.open .similar-header::before { content: '\25bc  '; }
+  .similar-body { display: none; margin-top: 8px; }
+  .similar-section.open .similar-body { display: block; }
+  .similar-card { background: #f8f9fa; border-radius: 8px; padding: 12px; margin-bottom: 8px; border-left: 3px solid #4361ee; }
+  .similar-card-header { margin-bottom: 8px; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .similar-card .resolution-text { font-size: 0.85rem; padding: 8px 12px; }
+
+  .expandable { cursor: pointer; }
+  .detail-row { display: none; }
+  .detail-row.active { display: table-row; }
+  .detail-row td { background: #f8f9fa; word-wrap: break-word; }
+  .trace-link { color: #4361ee; text-decoration: none; font-size: 0.85rem; }
+  .trace-link.disabled { color: #ccc; pointer-events: none; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Hospitality Integration Support</h1>
+  <p class="subtitle">AI-powered integration issue resolution</p>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="submit">Submit Ticket</button>
+    <button class="tab" data-tab="recent">Recent Tickets</button>
+    <button class="tab" data-tab="resolved">Past Resolutions</button>
+  </div>
+
+  <!-- Submit Tab -->
+  <div id="submit" class="tab-content active">
+    <form id="ticket-form">
+      <div class="form-group">
+        <label for="pms">PMS System</label>
+        <select id="pms" required>
+          <option value="">Select PMS...</option>
+          <option value="mews">Mews</option>
+          <option value="cloudbeds">Cloudbeds</option>
+          <option value="hostaway">Hostaway</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="subject">Subject</label>
+        <input type="text" id="subject" placeholder="Brief description of the issue" required minlength="5">
+      </div>
+      <div class="form-group">
+        <label for="description">Description</label>
+        <textarea id="description" placeholder="Describe the integration issue in detail..." required minlength="10"></textarea>
+      </div>
+      <button type="submit" class="submit" id="submit-btn">Submit Ticket</button>
+    </form>
+
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <span>AI agent investigating...</span>
+    </div>
+
+    <div id="result"></div>
+  </div>
+
+  <!-- Recent Tickets Tab -->
+  <div id="recent" class="tab-content">
+    <div id="tickets-list"></div>
+  </div>
+
+  <!-- Past Resolutions Tab -->
+  <div id="resolved" class="tab-content">
+    <div id="resolved-list"></div>
+  </div>
+</div>
+
+<script>
+// Tab switching
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(tab.dataset.tab).classList.add('active');
+    if (tab.dataset.tab === 'recent') loadTickets();
+    if (tab.dataset.tab === 'resolved') loadResolved();
+  });
+});
+
+// Submit ticket
+document.getElementById('ticket-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('submit-btn');
+  const loading = document.getElementById('loading');
+  const resultDiv = document.getElementById('result');
+
+  btn.disabled = true;
+  loading.classList.add('active');
+  resultDiv.innerHTML = '';
+
+  const body = {
+    subject: document.getElementById('subject').value,
+    description: document.getElementById('description').value,
+    pms_system: document.getElementById('pms').value,
+  };
+
+  try {
+    const res = await fetch('/api/tickets', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'Request failed');
+    }
+    const ticket = await res.json();
+    resultDiv.innerHTML = renderResult(ticket);
+  } catch (err) {
+    resultDiv.innerHTML = `<div class="result-card"><p style="color:#d93025">Error: ${err.message}</p></div>`;
+  } finally {
+    btn.disabled = false;
+    loading.classList.remove('active');
+  }
+});
+
+function renderResult(t) {
+  const traceLink = t.trace_id
+    ? `<a class="trace-link" href="#" title="Logfire trace">View in Logfire</a>`
+    : `<span class="trace-link disabled">Trace link (enable Logfire)</span>`;
+
+  const similarHtml = (t.similar_ticket_ids && t.similar_ticket_ids.length)
+    ? `<div class="similar-section">
+        <div class="similar-header" onclick="this.parentElement.classList.toggle('open')">
+          Similar tickets (${t.similar_ticket_ids.length})
+        </div>
+        <div class="similar-body" id="similar-${t.id}">Loading...</div>
+      </div>`
+    : '';
+
+  const html = `
+    <div class="result-card">
+      <h3>Ticket #${t.id} — ${t.subject}</h3>
+      <div class="badges">
+        <span class="badge category">${t.ai_category}</span>
+        <span class="badge priority-${t.ai_priority}">${t.ai_priority}</span>
+        <span class="badge confidence-${t.ai_confidence}">${t.ai_confidence} confidence</span>
+        ${t.escalation_recommended ? '<span class="badge escalation">Escalation Recommended</span>' : ''}
+      </div>
+      <div class="resolution-text">${t.ai_resolution_suggestion}</div>
+      <div class="meta">
+        <span>Docs: ${(t.source_docs_referenced || []).join(', ') || 'none'}</span>
+        ${traceLink}
+      </div>
+      ${similarHtml}
+    </div>`;
+
+  if (t.similar_ticket_ids && t.similar_ticket_ids.length) {
+    loadSimilarTickets(t.id, t.similar_ticket_ids);
+  }
+  return html;
+}
+
+async function loadSimilarTickets(ticketId, ids) {
+  try {
+    const res = await fetch(`/api/tickets/by-ids?ids=${ids.join(',')}`);
+    const tickets = await res.json();
+    const container = document.getElementById(`similar-${ticketId}`);
+    if (!container) return;
+    container.innerHTML = tickets.map(s => `
+      <div class="similar-card">
+        <div class="similar-card-header">
+          <strong>#${s.id}</strong> ${s.subject}
+          <span class="badge category">${s.ai_category || '-'}</span>
+          <span class="badge priority-${s.ai_priority}">${s.ai_priority || '-'}</span>
+        </div>
+        <div class="resolution-text">${s.ai_resolution_suggestion || 'No resolution available'}</div>
+      </div>
+    `).join('');
+  } catch (err) {
+    const container = document.getElementById(`similar-${ticketId}`);
+    if (container) container.innerHTML = 'Failed to load similar tickets.';
+  }
+}
+
+async function loadTickets() {
+  const container = document.getElementById('tickets-list');
+  try {
+    const res = await fetch('/api/tickets');
+    const tickets = await res.json();
+    if (tickets.length === 0) {
+      container.innerHTML = '<div class="empty-state">No tickets submitted yet. Submit one to get started!</div>';
+      return;
+    }
+    container.innerHTML = `
+      <table class="tickets-table">
+        <thead><tr>
+          <th>#</th><th>Subject</th><th>PMS</th><th>Category</th><th>Priority</th><th>Confidence</th><th>Trace</th>
+        </tr></thead>
+        <tbody>
+          ${tickets.map(t => `<tr>
+            <td>${t.id}</td>
+            <td>${t.subject}</td>
+            <td>${t.pms_system}</td>
+            <td><span class="badge category">${t.ai_category || '-'}</span></td>
+            <td><span class="badge priority-${t.ai_priority}">${t.ai_priority || '-'}</span></td>
+            <td><span class="badge confidence-${t.ai_confidence}">${t.ai_confidence || '-'}</span></td>
+            <td>${t.trace_id ? '<a class="trace-link" href="#">View</a>' : '<span class="trace-link disabled">—</span>'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  } catch (err) {
+    container.innerHTML = `<div class="empty-state">Error loading tickets: ${err.message}</div>`;
+  }
+}
+
+async function loadResolved() {
+  const container = document.getElementById('resolved-list');
+  try {
+    const res = await fetch('/api/tickets/resolved');
+    const tickets = await res.json();
+    if (tickets.length === 0) {
+      container.innerHTML = '<div class="empty-state">No past resolutions found.</div>';
+      return;
+    }
+    container.innerHTML = `
+      <table class="tickets-table">
+        <thead><tr>
+          <th style="width:5%">#</th><th style="width:40%">Subject</th><th style="width:12%">PMS</th><th style="width:15%">Category</th><th style="width:13%">Priority</th><th style="width:15%">Confidence</th>
+        </tr></thead>
+        <tbody>
+          ${tickets.map(t => `<tr class="expandable" onclick="this.nextElementSibling.classList.toggle('active')">
+            <td>${t.id}</td>
+            <td>${t.subject}</td>
+            <td>${t.pms_system}</td>
+            <td><span class="badge category">${t.ai_category || '-'}</span></td>
+            <td><span class="badge priority-${t.ai_priority}">${t.ai_priority || '-'}</span></td>
+            <td><span class="badge confidence-${t.ai_confidence}">${t.ai_confidence || '-'}</span></td>
+          </tr>
+          <tr class="detail-row">
+            <td colspan="6"><div class="resolution-text">${t.ai_resolution_suggestion || '-'}</div></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  } catch (err) {
+    container.innerHTML = `<div class="empty-state">Error loading resolutions: ${err.message}</div>`;
+  }
+}
+</script>
+</body>
+</html>

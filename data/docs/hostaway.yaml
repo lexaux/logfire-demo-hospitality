@@ -1,0 +1,54 @@
+system: hostaway
+display_name: Hostaway PMS
+
+supported:
+  - title: "Listing Sync"
+    items:
+      - "Two-way listing sync for name, nickname, address, photos"
+      - "Custom fields synced via API on property update"
+      - "WiFi credentials synced as custom listing attribute"
+      - "Amenity list synced bidirectionally"
+  - title: "Reservation & Guest Sync"
+    items:
+      - "Webhook-based real-time sync on reservation create/update/cancel"
+      - "Guest name, email, phone synced immediately"
+      - "Payment status synced (paid/unpaid/partial/refunded)"
+      - "OTA confirmation code passed through for all major OTAs"
+      - "Check-in and check-out dates and times synced"
+  - title: "Messaging"
+    items:
+      - "Canary: two-way message sync including attachments"
+      - "Duve: two-way message sync, templates shared"
+      - "Roomkey: outbound messages, inbound via polling (10 min delay)"
+
+partial:
+  - title: "Listing Sync Quirks"
+    items:
+      - "Photo sync limited to 20 per listing — excess photos silently dropped"
+      - "Listing descriptions over 2000 chars truncated"
+  - title: "Reservation Sync Quirks"
+    items:
+      - "Early check-in and late check-out upsells synced as reservation notes, not structured fields"
+      - "Guest phone format must be E.164 — non-standard formats cause sync skip"
+      - "Multi-unit bookings sync as separate reservations (no parent linking)"
+  - title: "Rate Sync Quirks"
+    items:
+      - "Rate sync supported for nightly rates only — weekly/monthly rates not synced"
+      - "Minimum stay restrictions synced but maximum stay ignored"
+      - "Seasonal rate overrides require manual mapping in guest platform"
+
+not_supported:
+  - title: "Features Not Available"
+    items:
+      - "Bulk rate sync across multiple listings not available via API"
+      - "Revenue management integration not supported"
+      - "Housekeeping task sync not available"
+      - "Owner statement data not exposed in API"
+      - "Channel-specific rate adjustments not synced (only master rate)"
+
+known_bugs:
+  - title: "Active Issues"
+    items:
+      - "BUG-H001: Webhook payload occasionally missing guest email for direct bookings — retry after 30s"
+      - "BUG-H002: Rate sync creates duplicate rate entries when listing is re-mapped"
+      - "BUG-H003: Reservation cancel webhook not fired for no-show auto-cancellations"

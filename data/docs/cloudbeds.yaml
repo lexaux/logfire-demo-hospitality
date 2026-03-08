@@ -1,0 +1,52 @@
+system: cloudbeds
+display_name: Cloudbeds PMS
+
+supported:
+  - title: "Listing Sync"
+    items:
+      - "One-way sync from Cloudbeds to guest platform (name, address, photos)"
+      - "Property-level custom fields synced on daily batch"
+      - "Room type mapping auto-detected from Cloudbeds room categories"
+  - title: "Reservation & Guest Sync"
+    items:
+      - "Polling-based sync every 5 minutes for reservation changes"
+      - "Guest name, email, phone synced on reservation create"
+      - "Payment status synced (paid/unpaid)"
+      - "Check-in and check-out dates synced (times not available in Cloudbeds API)"
+  - title: "Messaging"
+    items:
+      - "Canary: outbound messages only, no inbound from Cloudbeds"
+      - "Duve: two-way sync via Cloudbeds messaging API"
+      - "Roomkey: outbound only, plain text (no rich formatting)"
+
+partial:
+  - title: "Listing Sync Quirks"
+    items:
+      - "WiFi settings not available in Cloudbeds API — must configure in guest platform directly"
+      - "Photos synced but limited to 10 per listing"
+  - title: "Reservation Sync Quirks"
+    items:
+      - "OTA confirmation code available only for Airbnb and Booking.com — other OTAs show internal Cloudbeds ID"
+      - "Guest notes not synced — use custom fields as workaround"
+      - "Cancellation reason not passed through to guest platform"
+  - title: "Rate Sync Quirks"
+    items:
+      - "Rate sync limited to BAR (Best Available Rate) only"
+      - "OTA-specific rates not passed through — only Cloudbeds master rate synced"
+      - "Rate changes take up to 15 minutes to propagate"
+      - "Bulk rate updates (>50 rates) may timeout — split into batches of 25"
+
+not_supported:
+  - title: "Features Not Available"
+    items:
+      - "Real-time webhooks not available — all sync is polling-based (5 min interval)"
+      - "Group booking sync not supported"
+      - "Multi-property rate sync not available"
+      - "Guest loyalty/rewards data not exposed in API"
+
+known_bugs:
+  - title: "Active Issues"
+    items:
+      - "BUG-C001: OTA passthrough missing address field for Expedia bookings — known Cloudbeds API limitation"
+      - "BUG-C002: Duplicate reservation records when guest modifies dates within 5-min polling window"
+      - "BUG-C003: Rate sync silently fails when currency mismatch between Cloudbeds and guest platform"

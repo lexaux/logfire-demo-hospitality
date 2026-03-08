@@ -1,0 +1,13 @@
+#!/bin/sh
+set -e
+
+echo "Running ruff format..."
+uv run ruff format src/ tests/ evals/
+
+echo "Running ruff check..."
+uv run ruff check src/ tests/ evals/
+
+# Re-stage any files that were reformatted
+git diff --name-only --diff-filter=M | xargs -r git add
+
+echo "Pre-commit checks passed."

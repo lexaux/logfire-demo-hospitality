@@ -1,0 +1,17 @@
+- pms_system: mews
+  sla_hours: 4
+  owner_team: integrations-core
+  currently_degraded: false
+  escalation_notes: "Mews API stable. Escalate P1s to #mews-oncall Slack channel."
+
+- pms_system: cloudbeds
+  sla_hours: 8
+  owner_team: integrations-partnerships
+  currently_degraded: false
+  escalation_notes: "Cloudbeds polling-based — check sync lag before escalating. Contact partner-eng for API issues."
+
+- pms_system: hostaway
+  sla_hours: 6
+  owner_team: integrations-vacation-rental
+  currently_degraded: true
+  escalation_notes: "Hostaway webhook infrastructure currently degraded — expect delayed syncs. Engineering aware, ETA 48h."
