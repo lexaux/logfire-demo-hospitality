@@ -8,8 +8,9 @@ from src.main import app
 
 @pytest.fixture
 async def client():
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        yield ac
+    async with app.router.lifespan_context(app):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            yield ac
 
 
 @pytest.mark.asyncio
@@ -28,6 +29,14 @@ async def test_list_tickets_empty(client):
 
 
 @pytest.mark.asyncio
+async def test_resolved_tickets_seeded(client):
+    resp = await client.get("/api/tickets/resolved")
+    assert resp.status_code == 200
+    tickets = resp.json()
+    assert len(tickets) == 26
+
+
+@pytest.mark.asyncio
 async def test_create_ticket(client):
     resp = await client.post(
         "/api/tickets",
@@ -42,7 +51,8 @@ async def test_create_ticket(client):
     assert resp.status_code == 200
     data = resp.json()
     assert data["id"] is not None
-    assert data["ai_category"] is not None
+    valid_categories = ["billing", "sync_issue", "config", "not_supported", "bug", "unknown"]
+    assert data["ai_category"] in valid_categories
     assert data["ai_priority"] in ["P1", "P2", "P3"]
     assert data["ai_confidence"] in ["high", "medium", "low"]
     assert len(data["ai_resolution_suggestion"]) > 10
@@ -50,7 +60,6 @@ async def test_create_ticket(client):
 
 @pytest.mark.asyncio
 async def test_list_tickets_after_create(client):
-    # Create a ticket first
     await client.post(
         "/api/tickets",
         json={

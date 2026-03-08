@@ -1,4 +1,4 @@
-.PHONY: help run format check reset-db
+.PHONY: help run format check test reset-db
 .DEFAULT_GOAL := help
 
 help: ## Show available commands
@@ -13,6 +13,9 @@ format: ## Format code
 check: ## Lint + format check
 	uv run ruff check src/ tests/ evals/
 	uv run ruff format --check src/ tests/ evals/
+
+test: ## Run smoke tests
+	uv run pytest tests/ -v
 
 reset-db: ## Reset database (confirms first, re-seeds on next run)
 	@echo "This will delete the database and all submitted tickets."
