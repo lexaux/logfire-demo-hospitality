@@ -143,6 +143,13 @@ class IntegrationDoc(BaseModel):
     known_bugs: list[DocSection] = Field(default_factory=list)
 
 
+class PmsStatus(BaseModel):
+    system: PmsSystem
+    status: str
+    incident: str | None = None
+    since: str | None = None
+
+
 class EscalationEntry(BaseModel):
     pms_system: PmsSystem
     sla_hours: int

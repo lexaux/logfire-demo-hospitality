@@ -1,0 +1,14 @@
+- system: mews
+  status: operational
+  incident: null
+  since: null
+
+- system: cloudbeds
+  status: operational
+  incident: null
+  since: null
+
+- system: hostaway
+  status: degraded
+  incident: "Webhook delivery delays — engineering aware, ETA 48h"
+  since: "2025-03-07T10:00:00Z"

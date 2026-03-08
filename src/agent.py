@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import httpx
 from pydantic_ai import Agent, ModelSettings, RunContext
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,8 +20,9 @@ Supported PMS systems: {", ".join(m.value for m in PmsSystem)}.
 
 When given a support ticket, you must:
 1. Search the integration documentation for relevant information
-2. Look for similar previously resolved tickets
-3. If the issue is high priority (P1) or you have low confidence, get escalation context
+2. Check PMS vendor status to see if the provider has issues that may explain the problem
+3. Look for similar previously resolved tickets
+4. If the issue is high priority (P1) or you have low confidence, get escalation context
 
 Pick the most specific category. Follow the field descriptions in the output schema closely.
 
@@ -37,6 +39,8 @@ class TicketDeps:
     doc_chunks: list[dict]
     escalation_configs: list[EscalationEntry]
     pms_system: str
+    app_base_url: str = "http://localhost:8000"
+    http_transport: httpx.AsyncBaseTransport | None = None
 
 
 support_agent = Agent(
@@ -113,6 +117,23 @@ async def find_similar_tickets(
 
     scored.sort(key=lambda x: x["similarity_score"], reverse=True)
     return scored[:3]
+
+
+@support_agent.tool
+async def check_pms_status(
+    ctx: RunContext[TicketDeps],
+    pms_system: str,
+) -> dict:
+    """Check live PMS vendor system status.
+    Call this to determine if the PMS provider is experiencing issues.
+
+    Args:
+        pms_system: The PMS system name (e.g. "mews", "cloudbeds", "hostaway").
+    """
+    async with httpx.AsyncClient(transport=ctx.deps.http_transport) as client:
+        resp = await client.get(f"{ctx.deps.app_base_url}/api/pms-status/{pms_system}")
+        resp.raise_for_status()
+        return resp.json()
 
 
 @support_agent.tool

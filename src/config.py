@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     model_name: str = "openai:gpt-4o"
     database_url: str = "sqlite+aiosqlite:///data/tickets.db"
     openai_api_key: str = ""
+    app_base_url: str = "http://localhost:8000"
 
 
 settings = Settings()

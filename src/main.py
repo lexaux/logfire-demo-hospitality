@@ -3,26 +3,31 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import httpx
 import yaml
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from src.agent import TicketDeps, support_agent
+from src.config import settings
 from src.database import async_session, init_db
 from src.knowledge import build_doc_chunks, load_integration_docs
 from src.models import Ticket
-from src.schemas import EscalationEntry, TicketCreate, TicketResponse
+from src.schemas import EscalationEntry, PmsStatus, TicketCreate, TicketResponse
 from src.seed import seed_tickets
 
 # App-level state populated at startup
 doc_chunks: list[dict] = []
 escalation_configs: list[EscalationEntry] = []
+pms_statuses: dict[str, PmsStatus] = {}
+# Set by tests to route agent HTTP calls through ASGI transport
+agent_http_transport: httpx.AsyncBaseTransport | None = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global doc_chunks, escalation_configs
+    global doc_chunks, escalation_configs, pms_statuses
 
     # Init database and seed
     await init_db()
@@ -39,10 +44,27 @@ async def lifespan(app: FastAPI):
         raw = yaml.safe_load(f)
     escalation_configs = [EscalationEntry.model_validate(e) for e in raw]
 
+    # Load PMS status data
+    status_path = Path("data/pms_status.yaml")
+    with open(status_path) as f:
+        status_raw = yaml.safe_load(f)
+    for entry in status_raw:
+        s = PmsStatus.model_validate(entry)
+        pms_statuses[s.system] = s
+
     yield
 
 
 app = FastAPI(title="Hospitality Integration Support", lifespan=lifespan)
+
+
+@app.get("/api/pms-status/{system}")
+async def get_pms_status(system: str):
+    """Mock PMS vendor status endpoint."""
+    status = pms_statuses.get(system)
+    if not status:
+        raise HTTPException(status_code=404, detail=f"Unknown system: {system}")
+    return status.model_dump()
 
 
 @app.post("/api/tickets", response_model=TicketResponse)
@@ -65,6 +87,8 @@ async def create_ticket(ticket_in: TicketCreate):
             doc_chunks=doc_chunks,
             escalation_configs=escalation_configs,
             pms_system=ticket_in.pms_system,
+            app_base_url=settings.app_base_url,
+            http_transport=agent_http_transport,
         )
 
         try:

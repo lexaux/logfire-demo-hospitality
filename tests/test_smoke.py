@@ -3,14 +3,21 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+import src.main as main_module
 from src.main import app
+
+TEST_BASE_URL = "http://test"
 
 
 @pytest.fixture
 async def client():
+    transport = ASGITransport(app=app)
+    # Let the agent's check_pms_status tool route through ASGI in tests
+    main_module.agent_http_transport = transport
     async with app.router.lifespan_context(app):
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        async with AsyncClient(transport=transport, base_url=TEST_BASE_URL) as ac:
             yield ac
+    main_module.agent_http_transport = None
 
 
 @pytest.mark.asyncio
@@ -34,6 +41,32 @@ async def test_resolved_tickets_seeded(client):
     assert resp.status_code == 200
     tickets = resp.json()
     assert len(tickets) == 26
+
+
+@pytest.mark.asyncio
+async def test_pms_status_operational(client):
+    resp = await client.get("/api/pms-status/mews")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["system"] == "mews"
+    assert data["status"] == "operational"
+    assert data["incident"] is None
+
+
+@pytest.mark.asyncio
+async def test_pms_status_degraded(client):
+    resp = await client.get("/api/pms-status/hostaway")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["system"] == "hostaway"
+    assert data["status"] == "degraded"
+    assert "Webhook delivery delays" in data["incident"]
+
+
+@pytest.mark.asyncio
+async def test_pms_status_unknown_system(client):
+    resp = await client.get("/api/pms-status/nonexistent")
+    assert resp.status_code == 404
 
 
 @pytest.mark.asyncio
