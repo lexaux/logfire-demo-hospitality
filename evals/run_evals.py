@@ -1,10 +1,13 @@
 """CLI entry point for running evals.
 
-Usage: uv run python -m evals.run_evals
+Usage:
+    uv run python -m evals.run_evals                       # metadata: {model: openai:gpt-4o}
+    uv run python -m evals.run_evals --tag "new-prompt-v2" # metadata: {..., tag: new-prompt-v2}
 """
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 from pathlib import Path
 
@@ -15,6 +18,7 @@ from pydantic_evals.dataset import set_eval_attribute
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from src.agent import TicketDeps, support_agent
+from src.config import settings
 from src.knowledge import build_doc_chunks, load_integration_docs
 from src.main import app
 from src.models import Base
@@ -42,7 +46,7 @@ async def _setup_eval_db() -> async_sessionmaker[AsyncSession]:
     return session_factory
 
 
-async def main():
+async def main(args: argparse.Namespace):
     # Boot the FastAPI app lifespan so /api/pms-status works via ASGI
     async with app.router.lifespan_context(app):
         # Load knowledge base
@@ -91,7 +95,15 @@ async def main():
         # Import dataset and run
         from evals.dataset import dataset
 
-        report = await dataset.evaluate(task_fn, max_concurrency=2)
+        meta = {"model": settings.model_name}
+        if args.tag:
+            meta["tag"] = args.tag
+        report = await dataset.evaluate(
+            task_fn,
+            max_concurrency=2,
+            name="default-hospitality",
+            metadata=meta,
+        )
         report.print(
             include_output=True,
             include_expected_output=True,
@@ -106,4 +118,9 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--tag", default="", help="Optional tag added to metadata (e.g. 'new-prompt-v2')"
+    )
+    args = parser.parse_args()
+    asyncio.run(main(args))

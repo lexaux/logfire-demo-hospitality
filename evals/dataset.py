@@ -8,6 +8,7 @@ from evals.evaluators import CategoryMatch, PriorityMatch, escalation_judge
 from src.schemas import TicketResolution
 
 dataset = Dataset[dict, TicketResolution, None](
+    name="hospitality-support-default",
     evaluators=[CategoryMatch(), PriorityMatch()],
     cases=[
         # 1. Mews check-in not triggering message → sync_issue, P1, high

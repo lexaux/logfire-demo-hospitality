@@ -18,8 +18,8 @@ check: ## Lint + format check
 test: ## Run smoke tests
 	uv run pytest tests/ -v
 
-evals: ## Run offline evals (MODEL=openai:gpt-4o-mini to override)
-	MODEL_NAME=$(or $(MODEL),$(MODEL_NAME),openai:gpt-4o) uv run python -m evals.run_evals
+evals: ## Run offline evals (MODEL=openai:gpt-4o-mini TAG=new-prompt to override)
+	MODEL_NAME=$(or $(MODEL),$(MODEL_NAME),openai:gpt-4o) uv run python -m evals.run_evals $(if $(TAG),--tag $(TAG))
 
 reset-db: ## Reset database (confirms first, re-seeds on next run)
 	@echo "This will delete the database and all submitted tickets."
