@@ -73,7 +73,7 @@
   .detail-row { display: none; }
   .detail-row.active { display: table-row; }
   .detail-row td { background: #f8f9fa; word-wrap: break-word; }
-  .about { background: #eef2ff; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; font-size: 0.9rem; color: #444; line-height: 1.5; }
+  .about { background: #eef2ff; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; font-size: 0.9rem; color: #444; line-height: 1.5; cursor: pointer; }
   .about p { margin: 0; }
 </style>
 </head>
@@ -82,8 +82,22 @@
   <h1>Hospitality Integration Support</h1>
   <p class="subtitle">AI-powered integration issue resolution</p>
 
-  <div class="about">
-    <p>This tool helps support engineers and CSM reps diagnose issues between Property Management Systems (Mews, Cloudbeds, Hostaway) and our guest experience platform. Describe a problem, and an AI agent searches integration docs, finds similar past tickets, and returns a structured resolution with priority and confidence level.</p>
+  <div class="about" onclick="const d=this.querySelector('details'); d.open=!d.open;" >
+    <details onclick="event.stopPropagation()">
+      <summary>This tool helps support engineers and CSM reps diagnose issues between Property Management Systems (Mews, Cloudbeds, Hostaway) and our guest experience platform.</summary>
+      <p style="margin: 8px 0 0;">Describe a problem, and a PydanticAI agent uses four tools to investigate:</p>
+      <ul style="margin: 6px 0 0 18px; padding: 0; font-size: 0.85rem;">
+        <li><b>search_integration_docs</b> &mdash; searches PMS integration docs for relevant info</li>
+        <li><b>check_pms_status</b> &mdash; checks live vendor system status via HTTP</li>
+        <li><b>find_similar_tickets</b> &mdash; queries the DB for similar resolved tickets</li>
+        <li><b>get_escalation_context</b> &mdash; retrieves SLA and escalation rules for the PMS</li>
+      </ul>
+      <p style="margin: 10px 0 0; font-size: 0.85rem;">Try a sample ticket:
+        <a href="#" onclick="prefill('mews','Webhook firing twice','Every time a reservation is updated in Mews, we receive two webhook events instead of one. This is causing duplicate processing and double-charging guests for add-ons.');return false">Mews duplicate webhook</a> &middot;
+        <a href="#" onclick="prefill('hostaway','Webhook events not arriving','We stopped receiving webhook events from Hostaway about 2 hours ago. No errors in our logs but guest check-in messages are not being sent.');return false">Hostaway webhooks down</a> &middot;
+        <a href="#" onclick="prefill('cloudbeds','OTA reservation missing guest address','Reservations coming through Expedia via Cloudbeds are missing the guest address field. Other OTA channels seem fine. This affects our pre-arrival communication workflow.');return false">Cloudbeds missing fields</a>
+      </p>
+    </details>
   </div>
 
   <div class="tabs">
@@ -135,6 +149,17 @@
 </div>
 
 <script>
+function prefill(pms, subject, description) {
+  document.getElementById('pms').value = pms;
+  document.getElementById('subject').value = subject;
+  document.getElementById('description').value = description;
+  // Switch to submit tab
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelector('[data-tab="submit"]').classList.add('active');
+  document.getElementById('submit').classList.add('active');
+}
+
 // Tab switching
 document.querySelectorAll('.tab').forEach(tab => {
   tab.addEventListener('click', () => {
