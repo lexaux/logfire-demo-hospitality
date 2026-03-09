@@ -7,7 +7,8 @@ help: ## Show available commands
 run: ## Start the dev server
 	uv run uvicorn src.main:app --reload
 
-format: ## Format code
+format: ## Format code + sort imports
+	uv run ruff check --fix --select I src/ tests/ evals/
 	uv run ruff format src/ tests/ evals/
 
 check: ## Lint + format check
