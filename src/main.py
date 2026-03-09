@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import httpx
+import logfire
 import yaml
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
@@ -23,6 +24,13 @@ escalation_configs: list[EscalationEntry] = []
 pms_statuses: dict[str, PmsStatus] = {}
 # Set by tests to route agent HTTP calls through ASGI transport
 agent_http_transport: httpx.AsyncBaseTransport | None = None
+
+
+logfire.configure(environment="local", service_name="tkt_agent")
+logfire.instrument_httpx()
+logfire.instrument_sqlite3()
+logfire.instrument_sqlalchemy()
+logfire.instrument_pydantic_ai()
 
 
 @asynccontextmanager
@@ -57,6 +65,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Hospitality Integration Support", lifespan=lifespan)
 
+logfire.instrument_fastapi(app=app)
+
 
 @app.get("/api/pms-status/{system}")
 async def get_pms_status(system: str):
@@ -80,6 +90,7 @@ async def create_ticket(ticket_in: TicketCreate):
         session.add(ticket)
         await session.commit()
         await session.refresh(ticket)
+        logfire.info(f" MANUAL: Processing ticket {ticket.id}...")
 
         # Run AI agent
         deps = TicketDeps(
