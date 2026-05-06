@@ -4,9 +4,11 @@ from dataclasses import dataclass
 
 import httpx
 from pydantic_ai import Agent, ModelSettings, RunContext
+from pydantic_evals.online_capability import OnlineEvaluation
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from evals.evaluators import escalation_judge
 from src.config import settings
 from src.knowledge import search_chunks
 from src.models import Ticket
@@ -40,7 +42,9 @@ class TicketDeps:
     escalation_configs: list[EscalationEntry]
     pms_system: str
     app_base_url: str = "http://localhost:8000"
+    pms_status_base_url: str = "http://localhost:8001"
     http_transport: httpx.AsyncBaseTransport | None = None
+    pms_status_transport: httpx.AsyncBaseTransport | None = None
 
 
 support_agent = Agent(
@@ -50,6 +54,7 @@ support_agent = Agent(
     system_prompt=SYSTEM_PROMPT,
     model_settings=ModelSettings(temperature=0),
     defer_model_check=True,
+    capabilities=[OnlineEvaluation(evaluators=[escalation_judge()])]
 )
 
 
@@ -130,8 +135,10 @@ async def check_pms_status(
     Args:
         pms_system: The PMS system name (e.g. "mews", "cloudbeds", "hostaway").
     """
-    async with httpx.AsyncClient(transport=ctx.deps.http_transport) as client:
-        resp = await client.get(f"{ctx.deps.app_base_url}/api/pms-status/{pms_system}")
+    async with httpx.AsyncClient(transport=ctx.deps.pms_status_transport) as client:
+        resp = await client.get(
+            f"{ctx.deps.pms_status_base_url}/api/pms-status/{pms_system}"
+        )
         resp.raise_for_status()
         return resp.json()
 

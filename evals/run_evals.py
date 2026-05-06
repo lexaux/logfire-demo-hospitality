@@ -22,6 +22,7 @@ from src.config import settings
 from src.knowledge import build_doc_chunks, load_integration_docs
 from src.main import app
 from src.models import Base
+from src.pms_status_app import app as pms_status_app
 from src.schemas import EscalationEntry, TicketResolution
 from src.seed import seed_tickets
 
@@ -47,8 +48,9 @@ async def _setup_eval_db() -> async_sessionmaker[AsyncSession]:
 
 
 async def main(args: argparse.Namespace):
-    # Boot the FastAPI app lifespan so /api/pms-status works via ASGI
-    async with app.router.lifespan_context(app):
+    # Boot both app lifespans so check_pms_status can route via ASGI
+    async with app.router.lifespan_context(app), \
+            pms_status_app.router.lifespan_context(pms_status_app):
         # Load knowledge base
         docs = load_integration_docs()
         doc_chunks = build_doc_chunks(docs)
@@ -62,8 +64,8 @@ async def main(args: argparse.Namespace):
         # Set up eval DB
         session_factory = await _setup_eval_db()
 
-        # ASGI transport so check_pms_status routes to our app without real HTTP
-        asgi_transport = ASGITransport(app=app)
+        # ASGI transport so check_pms_status routes to the PMS status app
+        pms_status_transport = ASGITransport(app=pms_status_app)
 
         async def task_fn(inputs: dict) -> TicketResolution:
             """Run the agent on a single eval case."""
@@ -74,7 +76,8 @@ async def main(args: argparse.Namespace):
                     escalation_configs=escalation_configs,
                     pms_system=inputs["pms_system"],
                     app_base_url=EVAL_BASE_URL,
-                    http_transport=asgi_transport,
+                    pms_status_base_url=EVAL_BASE_URL,
+                    pms_status_transport=pms_status_transport,
                 )
                 prompt = (
                     f"PMS: {inputs['pms_system']}\n"

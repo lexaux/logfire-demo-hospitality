@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     database_url: str = "sqlite+aiosqlite:///data/tickets.db"
     openai_api_key: str = ""
     app_base_url: str = "http://localhost:8000"
+    pms_status_base_url: str = "http://localhost:8001"
 
 
 settings = Settings()

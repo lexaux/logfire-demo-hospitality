@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import logfire
 import yaml
 
 from src.schemas import IntegrationDoc
@@ -45,6 +46,10 @@ def build_doc_chunks(docs: list[IntegrationDoc]) -> list[dict]:
     return chunks
 
 
+@logfire.instrument(
+    "search_chunks query={query!r} systems={systems} top_k={top_k}",
+    extract_args=("query", "systems", "top_k"),
+)
 def search_chunks(
     chunks: list[dict], query: str, systems: list[str] | None = None, top_k: int = 3
 ) -> list[dict]:

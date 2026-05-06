@@ -4,8 +4,13 @@
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
 
-run: ## Start the dev server
-	uv run uvicorn src.main:app --reload
+run: ## Start both dev servers (ticketing on :8000, pms-status on :8001)
+	@uv run uvicorn src.pms_status_app:app --port 8001 --reload & \
+	PMS_PID=$$!; \
+	trap "kill $$PMS_PID 2>/dev/null" INT TERM; \
+	uv run uvicorn src.main:app --port 8000 --reload; \
+	kill $$PMS_PID 2>/dev/null; \
+	wait $$PMS_PID 2>/dev/null || true
 
 format: ## Format code + sort imports
 	uv run ruff check --fix --select I src/ tests/ evals/

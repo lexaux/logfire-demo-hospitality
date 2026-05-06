@@ -5,19 +5,31 @@ from httpx import ASGITransport, AsyncClient
 
 import src.main as main_module
 from src.main import app
+from src.pms_status_app import app as pms_status_app
 
 TEST_BASE_URL = "http://test"
+PMS_STATUS_BASE_URL = "http://pms-status"
 
 
 @pytest.fixture
 async def client():
     transport = ASGITransport(app=app)
-    # Let the agent's check_pms_status tool route through ASGI in tests
-    main_module.agent_http_transport = transport
-    async with app.router.lifespan_context(app):
+    pms_transport = ASGITransport(app=pms_status_app)
+    # Let the agent's check_pms_status tool route to the PMS status app via ASGI
+    main_module.agent_pms_status_transport = pms_transport
+    async with app.router.lifespan_context(app), \
+            pms_status_app.router.lifespan_context(pms_status_app):
         async with AsyncClient(transport=transport, base_url=TEST_BASE_URL) as ac:
             yield ac
-    main_module.agent_http_transport = None
+    main_module.agent_pms_status_transport = None
+
+
+@pytest.fixture
+async def pms_client():
+    transport = ASGITransport(app=pms_status_app)
+    async with pms_status_app.router.lifespan_context(pms_status_app):
+        async with AsyncClient(transport=transport, base_url=PMS_STATUS_BASE_URL) as ac:
+            yield ac
 
 
 @pytest.mark.asyncio
@@ -44,8 +56,8 @@ async def test_resolved_tickets_seeded(client):
 
 
 @pytest.mark.asyncio
-async def test_pms_status_operational(client):
-    resp = await client.get("/api/pms-status/mews")
+async def test_pms_status_operational(pms_client):
+    resp = await pms_client.get("/api/pms-status/mews")
     assert resp.status_code == 200
     data = resp.json()
     assert data["system"] == "mews"
@@ -54,8 +66,8 @@ async def test_pms_status_operational(client):
 
 
 @pytest.mark.asyncio
-async def test_pms_status_degraded(client):
-    resp = await client.get("/api/pms-status/hostaway")
+async def test_pms_status_degraded(pms_client):
+    resp = await pms_client.get("/api/pms-status/hostaway")
     assert resp.status_code == 200
     data = resp.json()
     assert data["system"] == "hostaway"
@@ -64,8 +76,8 @@ async def test_pms_status_degraded(client):
 
 
 @pytest.mark.asyncio
-async def test_pms_status_unknown_system(client):
-    resp = await client.get("/api/pms-status/nonexistent")
+async def test_pms_status_unknown_system(pms_client):
+    resp = await pms_client.get("/api/pms-status/nonexistent")
     assert resp.status_code == 404
 
 
