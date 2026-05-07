@@ -12,9 +12,7 @@ from src.schemas import PmsStatus
 pms_statuses: dict[str, PmsStatus] = {}
 
 
-logfire.configure(
-    environment="local", service_name="pms-status-service", distributed_tracing=True
-)
+logfire.configure(environment="local", service_name="pms-status-service", distributed_tracing=True)
 logfire.instrument_httpx()
 
 

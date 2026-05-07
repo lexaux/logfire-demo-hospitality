@@ -17,8 +17,10 @@ async def client():
     pms_transport = ASGITransport(app=pms_status_app)
     # Let the agent's check_pms_status tool route to the PMS status app via ASGI
     main_module.agent_pms_status_transport = pms_transport
-    async with app.router.lifespan_context(app), \
-            pms_status_app.router.lifespan_context(pms_status_app):
+    async with (
+        app.router.lifespan_context(app),
+        pms_status_app.router.lifespan_context(pms_status_app),
+    ):
         async with AsyncClient(transport=transport, base_url=TEST_BASE_URL) as ac:
             yield ac
     main_module.agent_pms_status_transport = None

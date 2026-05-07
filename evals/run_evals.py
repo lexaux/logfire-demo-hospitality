@@ -49,8 +49,10 @@ async def _setup_eval_db() -> async_sessionmaker[AsyncSession]:
 
 async def main(args: argparse.Namespace):
     # Boot both app lifespans so check_pms_status can route via ASGI
-    async with app.router.lifespan_context(app), \
-            pms_status_app.router.lifespan_context(pms_status_app):
+    async with (
+        app.router.lifespan_context(app),
+        pms_status_app.router.lifespan_context(pms_status_app),
+    ):
         # Load knowledge base
         docs = load_integration_docs()
         doc_chunks = build_doc_chunks(docs)
