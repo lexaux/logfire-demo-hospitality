@@ -3,22 +3,27 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import httpx
+import logfire
 from pydantic_ai import Agent, ModelSettings, RunContext
 from pydantic_evals.online_capability import OnlineEvaluation
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from evals.evaluators import escalation_judge
-from src.config import settings
 from src.knowledge import search_chunks
+from src.llm import llm_model
 from src.models import Ticket
 from src.schemas import EscalationEntry, PmsSystem, TicketResolution
 
-SYSTEM_PROMPT = f"""\
+PMS_SYSTEMS_LIST = ", ".join(m.value for m in PmsSystem)
+
+# Fallback used if Logfire is unreachable; production prompt is managed in Logfire
+# under variable `prompt__new_prompt` (display name: support_agent_prompt).
+SYSTEM_PROMPT_FALLBACK = """\
 You are a hospitality integration support assistant. You help support teams diagnose \
 and resolve issues between Property Management Systems (PMS) and a Guest Experience Platform.
 
-Supported PMS systems: {", ".join(m.value for m in PmsSystem)}.
+Supported PMS systems: {{pms_systems}}.
 
 When given a support ticket, you must:
 1. Search the integration documentation for relevant information
@@ -30,9 +35,17 @@ Pick the most specific category. Follow the field descriptions in the output sch
 
 Set escalation_recommended to true if priority is P1, confidence is low, or the system is degraded.
 
-Be precise. Cite specific doc sections and bug IDs when available. \
-If the issue isn't covered in docs, say so and recommend escalation.\
+Be precise. Cite specific doc sections and bug IDs when available. If the issue isn't covered in docs, say so and recommend escalation.
 """
+
+_prompt_var = logfire.var(name="prompt__new_prompt", default=SYSTEM_PROMPT_FALLBACK)
+
+
+def _render_template(template: str, variables: dict[str, str]) -> str:
+    rendered = template
+    for key, value in variables.items():
+        rendered = rendered.replace(f"{{{{{key}}}}}", value)
+    return rendered
 
 
 @dataclass
@@ -48,14 +61,19 @@ class TicketDeps:
 
 
 support_agent = Agent(
-    settings.model_name,
+    llm_model,
     deps_type=TicketDeps,
     output_type=TicketResolution,
-    system_prompt=SYSTEM_PROMPT,
     model_settings=ModelSettings(temperature=0),
     defer_model_check=True,
-    capabilities=[OnlineEvaluation(evaluators=[escalation_judge()])]
+    capabilities=[OnlineEvaluation(evaluators=[escalation_judge(llm_model)])],
 )
+
+
+@support_agent.system_prompt
+async def _system_prompt(ctx: RunContext[TicketDeps]) -> str:
+    with _prompt_var.get() as resolved:
+        return _render_template(resolved.value, {"pms_systems": PMS_SYSTEMS_LIST})
 
 
 @support_agent.tool
@@ -136,9 +154,7 @@ async def check_pms_status(
         pms_system: The PMS system name (e.g. "mews", "cloudbeds", "hostaway").
     """
     async with httpx.AsyncClient(transport=ctx.deps.pms_status_transport) as client:
-        resp = await client.get(
-            f"{ctx.deps.pms_status_base_url}/api/pms-status/{pms_system}"
-        )
+        resp = await client.get(f"{ctx.deps.pms_status_base_url}/api/pms-status/{pms_system}")
         resp.raise_for_status()
         return resp.json()
 

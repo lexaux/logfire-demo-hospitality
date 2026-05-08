@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pydantic_ai.models import Model
 from pydantic_evals.evaluators import EvaluationReason, Evaluator, EvaluatorContext, LLMJudge
 
 from src.schemas import TicketResolution
@@ -40,9 +41,10 @@ class PriorityMatch(Evaluator[dict, TicketResolution, None]):
         )
 
 
-def escalation_judge() -> LLMJudge:
+def escalation_judge(model: Model | str) -> LLMJudge:
     """LLM judge for escalation appropriateness on ambiguous cases."""
     return LLMJudge(
+        model=model,
         rubric=(
             "The agent's confidence is low or the issue is ambiguous. "
             "Evaluate whether escalation_recommended is appropriate given the context. "

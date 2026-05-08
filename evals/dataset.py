@@ -5,6 +5,7 @@ from __future__ import annotations
 from pydantic_evals import Case, Dataset
 
 from evals.evaluators import CategoryMatch, PriorityMatch, escalation_judge
+from src.llm import llm_model
 from src.schemas import TicketResolution
 
 dataset = Dataset[dict, TicketResolution, None](
@@ -72,7 +73,7 @@ dataset = Dataset[dict, TicketResolution, None](
                 resolution_suggestion="placeholder",
                 escalation_recommended=True,
             ),
-            evaluators=(escalation_judge(),),
+            evaluators=(escalation_judge(llm_model),),
         ),
         # 4. Webhook firing twice → bug, P1, high
         Case(
@@ -133,7 +134,7 @@ dataset = Dataset[dict, TicketResolution, None](
                 resolution_suggestion="placeholder",
                 escalation_recommended=True,
             ),
-            evaluators=(escalation_judge(),),
+            evaluators=(escalation_judge(llm_model),),
         ),
         # 7. Hostaway weekly rates not syncing → not_supported, P3, high
         Case(
@@ -173,7 +174,7 @@ dataset = Dataset[dict, TicketResolution, None](
                 resolution_suggestion="placeholder",
                 escalation_recommended=True,
             ),
-            evaluators=(escalation_judge(),),
+            evaluators=(escalation_judge(llm_model),),
         ),
     ],
 )

@@ -24,8 +24,10 @@ escalation_configs: list[EscalationEntry] = []
 # Set by tests/evals to route the agent's PMS-status HTTP calls through ASGI
 agent_pms_status_transport: httpx.AsyncBaseTransport | None = None
 
-
-logfire.configure(environment="local", service_name="tkt_agent", distributed_tracing=True)
+logfire.configure(
+    environment="local", service_name="tkt_agent", distributed_tracing=True,
+    # advanced=logfire.AdvancedOptions(base_url='http://localhost:8080')
+)
 logfire.instrument_httpx()
 logfire.instrument_sqlite3()
 logfire.instrument_sqlalchemy()
