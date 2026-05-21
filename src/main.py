@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from logfire import VariablesOptions
 
-from src.agent import TicketDeps, support_agent
+from src.agent import TicketDeps, format_ticket_prompt, support_agent
 from src.config import settings
 from src.database import async_session, init_db
 from src.knowledge import build_doc_chunks, load_integration_docs
@@ -91,17 +91,24 @@ async def create_ticket(ticket_in: TicketCreate):
             pms_status_transport=agent_pms_status_transport,
         )
 
-        try:
-            result = await support_agent.run(
-                f"Ticket #{ticket.id}\n"
-                f"PMS: {ticket_in.pms_system}\n"
-                f"Subject: {ticket_in.subject}\n"
-                f"Description: {ticket_in.description}",
-                deps=deps,
-            )
-            resolution = result.output
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Agent error: {e}") from e
+        # Structured wrapper span — input + output match the curated dataset
+        # schema (TicketInput → TicketResolution). The Logfire "Add to dataset"
+        # flow reads attributes from this span, so curation pre-populates both
+        # input and expected_output without manual editing.
+        with logfire.span(
+            "support_ticket_resolution",
+            ticket=ticket_in.model_dump(mode="json"),
+        ) as ticket_span:
+            try:
+                result = await support_agent.run(
+                    format_ticket_prompt(ticket.id, ticket_in),
+                    deps=deps,
+                )
+                resolution = result.output
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Agent error: {e}") from e
+
+            ticket_span.set_attribute("resolution", resolution.model_dump(mode="json"))
 
         # Update ticket with AI results
         ticket.ai_category = resolution.category

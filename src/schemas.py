@@ -106,11 +106,21 @@ class TicketResolution(BaseModel):
     )
 
 
+# --- Agent input type ---
+# Source-of-truth shape for what the support agent operates on. Used by:
+#   - FastAPI (via TicketCreate subclass, which adds length validation)
+#   - evals/dataset.py (static Cases)
+#   - evals/curated.py (Logfire-hosted dataset)
+class TicketInput(BaseModel):
+    subject: str
+    description: str
+    pms_system: PmsSystem
+
+
 # --- API request/response ---
-class TicketCreate(BaseModel):
+class TicketCreate(TicketInput):
     subject: str = Field(min_length=5, max_length=256)
     description: str = Field(min_length=10)
-    pms_system: PmsSystem
 
 
 class TicketResponse(BaseModel):

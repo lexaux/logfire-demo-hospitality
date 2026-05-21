@@ -23,8 +23,8 @@ check: ## Lint + format check
 test: ## Run smoke tests
 	uv run pytest tests/ -v
 
-evals: ## Run offline evals (MODEL=openai:gpt-4o-mini TAG=new-prompt to override)
-	MODEL_NAME=$(or $(MODEL),$(MODEL_NAME),gpt-4o) uv run python -m evals.run_evals $(if $(TAG),--tag $(TAG))
+evals: ## Run evals against curated Logfire dataset (SOURCE=static|curated|both, MODEL=..., TAG=...)
+	MODEL_NAME=$(or $(MODEL),$(MODEL_NAME),gpt-4o) uv run python -m evals.run_evals --source $(or $(SOURCE),curated) $(if $(TAG),--tag $(TAG))
 
 reset-db: ## Reset database (confirms first, re-seeds on next run)
 	@echo "This will delete the database and all submitted tickets."

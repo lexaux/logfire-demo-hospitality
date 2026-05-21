@@ -19,9 +19,24 @@ from evals.evaluators import (
 from src.knowledge import search_chunks
 from src.llm import llm_model
 from src.models import Ticket
-from src.schemas import EscalationEntry, PmsSystem, TicketResolution
+from src.schemas import EscalationEntry, PmsSystem, TicketInput, TicketResolution
 
 PMS_SYSTEMS_LIST = ", ".join(m.value for m in PmsSystem)
+
+
+def format_ticket_prompt(ticket_id: int | None, ticket: TicketInput) -> str:
+    """Render a structured ticket as the LLM-facing user prompt.
+
+    Single source of truth — used by the FastAPI handler and the eval runner.
+    """
+    header = f"Ticket #{ticket_id}\n" if ticket_id is not None else ""
+    return (
+        f"{header}"
+        f"PMS: {ticket.pms_system}\n"
+        f"Subject: {ticket.subject}\n"
+        f"Description: {ticket.description}"
+    )
+
 
 # Fallback used if Logfire is unreachable; production prompt is managed in Logfire
 # under variable `prompt__new_prompt` (display name: support_agent_prompt).

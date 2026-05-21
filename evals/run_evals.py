@@ -17,13 +17,13 @@ from pydantic_ai.messages import ModelResponse, ToolCallPart
 from pydantic_evals.dataset import set_eval_attribute
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from src.agent import TicketDeps, support_agent
+from src.agent import TicketDeps, format_ticket_prompt, support_agent
 from src.config import settings
 from src.knowledge import build_doc_chunks, load_integration_docs
 from src.main import app
 from src.models import Base
 from src.pms_status_app import app as pms_status_app
-from src.schemas import EscalationEntry, TicketResolution
+from src.schemas import EscalationEntry, TicketInput, TicketResolution
 from src.seed import seed_tickets
 
 EVAL_BASE_URL = "http://test"
@@ -69,24 +69,22 @@ async def main(args: argparse.Namespace):
         # ASGI transport so check_pms_status routes to the PMS status app
         pms_status_transport = ASGITransport(app=pms_status_app)
 
-        async def task_fn(inputs: dict) -> TicketResolution:
+        async def task_fn(inputs: TicketInput) -> TicketResolution:
             """Run the agent on a single eval case."""
             async with session_factory() as session:
                 deps = TicketDeps(
                     db_session=session,
                     doc_chunks=doc_chunks,
                     escalation_configs=escalation_configs,
-                    pms_system=inputs["pms_system"],
+                    pms_system=inputs.pms_system,
                     app_base_url=EVAL_BASE_URL,
                     pms_status_base_url=EVAL_BASE_URL,
                     pms_status_transport=pms_status_transport,
                 )
-                prompt = (
-                    f"PMS: {inputs['pms_system']}\n"
-                    f"Subject: {inputs['subject']}\n"
-                    f"Description: {inputs['description']}"
+                result = await support_agent.run(
+                    format_ticket_prompt(None, inputs),
+                    deps=deps,
                 )
-                result = await support_agent.run(prompt, deps=deps)
                 tools_used = [
                     part.tool_name
                     for msg in result.all_messages()
@@ -97,16 +95,25 @@ async def main(args: argparse.Namespace):
                 set_eval_attribute("tools_used", tools_used)
                 return result.output
 
-        # Import dataset and run
-        from evals.dataset import dataset
+        # Pick the dataset source (static / curated / merged)
+        if args.source == "static":
+            from evals.dataset import dataset
+        elif args.source == "curated":
+            from evals.curated import load_curated
 
-        meta = {"model": settings.model_name}
+            dataset = load_curated()
+        else:  # both
+            from evals.curated import merged
+
+            dataset = merged()
+
+        meta = {"model": settings.model_name, "source": args.source}
         if args.tag:
             meta["tag"] = args.tag
         report = await dataset.evaluate(
             task_fn,
             max_concurrency=2,
-            name="default-hospitality",
+            name=f"hospitality-{args.source}",
             metadata=meta,
         )
         report.print(
@@ -126,6 +133,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--tag", default="", help="Optional tag added to metadata (e.g. 'new-prompt-v2')"
+    )
+    parser.add_argument(
+        "--source",
+        default="static",
+        choices=["static", "curated", "both"],
+        help="Where cases come from: static (in-repo), curated (Logfire-hosted), or both.",
     )
     args = parser.parse_args()
     asyncio.run(main(args))

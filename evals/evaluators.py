@@ -9,7 +9,7 @@ from pydantic_ai.models import Model
 from pydantic_evals.evaluators import EvaluationReason, Evaluator, EvaluatorContext, LLMJudge
 from pydantic_evals.evaluators.common import OutputConfig
 
-from src.schemas import TicketResolution
+from src.schemas import TicketInput, TicketResolution
 
 
 @dataclass
@@ -27,10 +27,13 @@ class ResolutionQualityScore(LLMJudge):
     """Scored (0.0–1.0) judge of resolution quality — not boolean pass/fail."""
 
 
-class CategoryMatch(Evaluator[dict, TicketResolution, None]):
+@dataclass
+class CategoryMatch(Evaluator[TicketInput, TicketResolution, None]):
     """Check if the agent's category matches the expected category."""
 
-    def evaluate(self, ctx: EvaluatorContext[dict, TicketResolution, None]) -> EvaluationReason:
+    def evaluate(
+        self, ctx: EvaluatorContext[TicketInput, TicketResolution, None]
+    ) -> EvaluationReason:
         if ctx.expected_output is None:
             return EvaluationReason(value=True, reason="No expected output to compare")
         match = ctx.output.category == ctx.expected_output.category
@@ -45,7 +48,8 @@ _BUG_ID_RE = re.compile(r"\bBUG-[A-Z]\d+\b")
 _TICKET_ID_RE = re.compile(r"#\d+|\bticket[\s_-]?#?\d+\b", re.IGNORECASE)
 
 
-class ReferenceKind(Evaluator[dict, TicketResolution, None]):
+@dataclass
+class ReferenceKind(Evaluator[TicketInput, TicketResolution, None]):
     """Categorical evaluator: returns a compound label listing every reference kind
     found in the resolution, sorted and `+`-joined (e.g. `bug_id+url`).
 
@@ -54,7 +58,7 @@ class ReferenceKind(Evaluator[dict, TicketResolution, None]):
     `ticket_ref`, `url`, joined as needed; `none` if nothing matches.
     """
 
-    def evaluate(self, ctx: EvaluatorContext[dict, TicketResolution, None]) -> str:
+    def evaluate(self, ctx: EvaluatorContext[TicketInput, TicketResolution, None]) -> str:
         text = ctx.output.resolution_suggestion or ""
         labels: list[str] = []
         if _BUG_ID_RE.search(text):
@@ -66,13 +70,16 @@ class ReferenceKind(Evaluator[dict, TicketResolution, None]):
         return "+".join(labels) if labels else "none"
 
 
-class PriorityMatch(Evaluator[dict, TicketResolution, None]):
+@dataclass
+class PriorityMatch(Evaluator[TicketInput, TicketResolution, None]):
     """Check if the agent's priority matches expected priority.
 
     P1 false negatives always fail with a special reason.
     """
 
-    def evaluate(self, ctx: EvaluatorContext[dict, TicketResolution, None]) -> EvaluationReason:
+    def evaluate(
+        self, ctx: EvaluatorContext[TicketInput, TicketResolution, None]
+    ) -> EvaluationReason:
         if ctx.expected_output is None:
             return EvaluationReason(value=True, reason="No expected output to compare")
         expected = ctx.expected_output.priority

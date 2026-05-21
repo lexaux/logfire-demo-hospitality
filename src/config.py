@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     app_base_url: str = "http://localhost:8000"
     pms_status_base_url: str = "http://localhost:8001"
+    logfire_api_key: str = ""
 
 
 settings = Settings()
