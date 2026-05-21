@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import cache
 
 import httpx
 import logfire
@@ -38,7 +39,12 @@ Set escalation_recommended to true if priority is P1, confidence is low, or the 
 Be precise. Cite specific doc sections and bug IDs when available. If the issue isn't covered in docs, say so and recommend escalation.
 """
 
-_prompt_var = logfire.var(name="prompt__new_prompt", default=SYSTEM_PROMPT_FALLBACK)
+
+@cache
+def _prompt_var():
+    var = logfire.var(name="prompt__new_prompt", default=SYSTEM_PROMPT_FALLBACK)
+    var.refresh_sync(force=True)
+    return var
 
 
 def _render_template(template: str, variables: dict[str, str]) -> str:
@@ -72,7 +78,7 @@ support_agent = Agent(
 
 @support_agent.system_prompt
 async def _system_prompt(ctx: RunContext[TicketDeps]) -> str:
-    with _prompt_var.get() as resolved:
+    with _prompt_var().get() as resolved:
         return _render_template(resolved.value, {"pms_systems": PMS_SYSTEMS_LIST})
 
 

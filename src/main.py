@@ -9,6 +9,7 @@ import yaml
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from logfire import VariablesOptions
 
 from src.agent import TicketDeps, support_agent
 from src.config import settings
@@ -25,7 +26,10 @@ escalation_configs: list[EscalationEntry] = []
 agent_pms_status_transport: httpx.AsyncBaseTransport | None = None
 
 logfire.configure(
-    environment="local", service_name="tkt_agent", distributed_tracing=True,
+    environment="local",
+    service_name="tkt_agent",
+    distributed_tracing=True,
+    variables=VariablesOptions(),
     # advanced=logfire.AdvancedOptions(base_url='http://localhost:8080')
 )
 logfire.instrument_httpx()
