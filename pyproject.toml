@@ -13,7 +13,7 @@ dependencies = [
     "pydantic-ai>=1.0.0",
     "httpx>=0.28.0",
     "pyyaml>=6.0.0",
-    "logfire[fastapi,https,httpx,sqlalchemy,sqlite3]>=4.27.0",
+    "logfire[datasets,fastapi,https,httpx,sqlalchemy,sqlite3]>=4.32.0",
 ]
 
 [dependency-groups]
