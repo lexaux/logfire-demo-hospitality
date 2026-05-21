@@ -10,7 +10,12 @@ from pydantic_evals.online_capability import OnlineEvaluation
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from evals.evaluators import escalation_judge
+from evals.evaluators import (
+    ReferenceKind,
+    escalation_judge,
+    evidence_judge,
+    resolution_quality_score,
+)
 from src.knowledge import search_chunks
 from src.llm import llm_model
 from src.models import Ticket
@@ -72,7 +77,16 @@ support_agent = Agent(
     output_type=TicketResolution,
     model_settings=ModelSettings(temperature=0),
     defer_model_check=True,
-    capabilities=[OnlineEvaluation(evaluators=[escalation_judge(llm_model)])],
+    capabilities=[
+        OnlineEvaluation(
+            evaluators=[
+                escalation_judge(llm_model),
+                evidence_judge(llm_model),
+                resolution_quality_score(llm_model),
+                ReferenceKind(),
+            ]
+        )
+    ],
 )
 
 
