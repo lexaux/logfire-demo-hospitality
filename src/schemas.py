@@ -12,10 +12,14 @@ class BaseModel(_BaseModel):
 
 
 # --- Enums with descriptions ---
-class PmsSystem(StrEnum):
-    MEWS = "mews"
-    CLOUDBEDS = "cloudbeds"
-    HOSTAWAY = "hostaway"
+class Integration(StrEnum):
+    STRIPE = "stripe"
+    TWILIO = "twilio"
+    SENDGRID = "sendgrid"
+
+
+# Back-compat alias so any stale imports keep working in this codebase.
+PmsSystem = Integration
 
 
 class Category(StrEnum):
@@ -114,7 +118,7 @@ class TicketResolution(BaseModel):
 class TicketInput(BaseModel):
     subject: str
     description: str
-    pms_system: PmsSystem
+    integration: Integration
 
 
 # --- API request/response ---
@@ -127,7 +131,7 @@ class TicketResponse(BaseModel):
     id: int
     subject: str
     description: str
-    pms_system: PmsSystem
+    integration: Integration
     status: TicketStatus
     ai_category: Category | None = None
     ai_priority: Priority | None = None
@@ -136,6 +140,10 @@ class TicketResponse(BaseModel):
     source_docs_referenced: list[str] | None = None
     similar_ticket_ids: list[int] | None = None
     escalation_recommended: bool | None = None
+    # Hex IDs of the wrapper `support_ticket_resolution` span. Returned to the
+    # browser so it can emit a `feedback` span linked back to this agent run.
+    trace_id: str | None = None
+    span_id: str | None = None
 
 
 # --- Knowledge base validation ---
@@ -145,7 +153,7 @@ class DocSection(BaseModel):
 
 
 class IntegrationDoc(BaseModel):
-    system: PmsSystem
+    system: Integration
     display_name: str
     supported: list[DocSection] = Field(default_factory=list)
     partial: list[DocSection] = Field(default_factory=list)
@@ -153,15 +161,19 @@ class IntegrationDoc(BaseModel):
     known_bugs: list[DocSection] = Field(default_factory=list)
 
 
-class PmsStatus(BaseModel):
-    system: PmsSystem
+class ServiceStatus(BaseModel):
+    system: Integration
     status: str
     incident: str | None = None
     since: str | None = None
 
 
+# Back-compat alias
+PmsStatus = ServiceStatus
+
+
 class EscalationEntry(BaseModel):
-    pms_system: PmsSystem
+    integration: Integration
     sla_hours: int
     owner_team: str
     currently_degraded: bool = False
@@ -171,7 +183,7 @@ class EscalationEntry(BaseModel):
 class SeededTicket(BaseModel):
     subject: str
     description: str
-    pms_system: PmsSystem
+    integration: Integration
     status: TicketStatus = TicketStatus.RESOLVED
     ai_category: Category
     ai_priority: Priority

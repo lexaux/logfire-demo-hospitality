@@ -1,6 +1,6 @@
 """Load the Logfire-hosted curated dataset and merge with the static one.
 
-The curated dataset lives in Logfire (`hospitality-prod-curated`) and is
+The curated dataset lives in Logfire (`integration-support-prod-curated`) and is
 populated by promoting interesting prod traces in the UI. This module fetches
 it as a typed `pydantic_evals.Dataset` and offers a `merged()` helper that
 combines hosted + static cases into a single dataset for offline eval runs.
@@ -23,7 +23,7 @@ from evals.evaluators import (
 from src.config import settings
 from src.schemas import TicketInput, TicketResolution
 
-CURATED_DATASET_NAME = "hospitality-prod-curated"
+CURATED_DATASET_NAME = "ticketing-prod-curated"
 
 # Every evaluator the hosted dataset might reference (by class name). Order
 # doesn't matter; this list is just the "menu" for hydration.
@@ -66,7 +66,7 @@ def merged() -> Dataset[TicketInput, TicketResolution, dict | None]:
         c.name = f"curated:{c.name}" if c.name else "curated:unnamed"
         cases.append(c)
     return Dataset[TicketInput, TicketResolution, dict | None](
-        name="hospitality-merged",
+        name="integration-support-merged",
         cases=cases,
         evaluators=list(static_dataset.evaluators),
     )

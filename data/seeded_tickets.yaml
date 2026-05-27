@@ -1,350 +1,188 @@
-- subject: Mews webhook duplicate reservation events
-  description: We're receiving duplicate webhook events every time a reservation is updated in Mews. The second event arrives
-    within 1-2 seconds of the first. This is causing duplicate guest records in the guest platform.
-  pms_system: mews
+# Seeded resolved tickets — loaded once into the DB on first startup so the
+# "find_similar_tickets" tool has prior cases to draw on. Re-seed by deleting
+# data/tickets.db (or `make reset-db`) and restarting the app.
+
+- subject: Duplicate charge.succeeded webhooks on retried POST
+  description: We're seeing two charge.succeeded webhooks fire for the same payment when our worker retries
+    a POST to /v1/payment_intents with the same idempotency key. Causing double-counted revenue in our reporting.
+  integration: stripe
   ai_category: bug
   ai_priority: P1
   ai_confidence: high
-  ai_resolution_suggestion: This is a known bug (BUG-M001). Deduplicate incoming webhooks by checking reservation_id + updated_at
-    timestamp. Discard events where both fields match a recently processed event within a 5-second window.
-  resolution_notes: Implemented deduplication filter on webhook handler. Issue resolved after deploying idempotency check
-    on reservation_id + updated_at.
+  ai_resolution_suggestion: 'This is known bug BUG-S001. Deduplicate incoming webhooks on event.id rather
+    than on payment_intent.id or charge.id. Stripe retries delivery on at-least-once semantics and the same
+    event.id will repeat on each retry.'
+  resolution_notes: Added event.id dedupe table with 7-day TTL. Duplicate webhook impact dropped to 0%.
   source_docs_referenced:
-  - mews
+  - stripe
   escalation_recommended: false
-- subject: Guest email missing for walk-in bookings in Mews
-  description: When a guest checks in as a walk-in (no prior reservation), the guest email field comes through as null in
-    the webhook payload. Our guest platform messaging flow breaks because it requires an email.
-  pms_system: mews
+
+- subject: payment_method.detached event missing customer field
+  description: When a customer removes their default card via our portal, the payment_method.detached
+    webhook arrives but the customer field is null. We can't route the cleanup to the right account.
+  integration: stripe
   ai_category: bug
   ai_priority: P2
   ai_confidence: high
-  ai_resolution_suggestion: 'Known issue BUG-M002. Implement fallback logic: when email is null, attempt phone lookup via
-    guest phone field. If both are null, queue the record for manual review.'
-  resolution_notes: Added phone fallback logic in guest sync handler. Walk-in guests now matched by phone when email unavailable.
+  ai_resolution_suggestion: 'Known issue BUG-S002. On detachment of the default payment method, customer
+    is occasionally omitted from the event payload. Workaround: re-fetch the payment method via
+    GET /v1/payment_methods/{id} which returns the prior customer association.'
+  resolution_notes: Implemented re-fetch fallback. Customer attribution recovered for 100% of detached events.
   source_docs_referenced:
-  - mews
+  - stripe
   escalation_recommended: false
-- subject: Mews check-in event delayed during peak hours
-  description: During weekend check-in rush (50+ simultaneous check-ins), the guest platform is not receiving check-in events for up to
-    3 minutes. Guest welcome messages are being sent late.
-  pms_system: mews
-  ai_category: sync_issue
-  ai_priority: P2
-  ai_confidence: high
-  ai_resolution_suggestion: Known behavior (BUG-M003). During high-load periods (>50 concurrent check-ins), Mews webhook delivery
-    can be delayed up to 2 minutes. Consider implementing a polling fallback that runs every 60 seconds during peak hours.
-  resolution_notes: 'Implemented hybrid sync: webhook primary + polling fallback every 60s between 2-6 PM. Reduced maximum
-    delay to under 90 seconds.'
-  source_docs_referenced:
-  - mews
-  escalation_recommended: false
-- subject: Cannot sync rates from Mews to the guest platform
-  description: We need to display room rates in our guest platform guest portal but the integration doesn't seem to pull rate data from
-    Mews.
-  pms_system: mews
-  ai_category: not_supported
-  ai_priority: P3
-  ai_confidence: high
-  ai_resolution_suggestion: Rate/pricing sync is not available in the Mews integration. Rates must be managed directly in
-    Mews. For display in guest platform, consider using a static rate card or direct Mews API query.
-  resolution_notes: Confirmed not supported. Customer set up a static rate display page in the guest platform as workaround.
-  source_docs_referenced:
-  - mews
-  escalation_recommended: false
-- subject: Mews group booking creates separate reservations
-  description: A group of 8 rooms booked together in Mews is showing up as 8 individual reservations in the guest platform with no way
-    to link them.
-  pms_system: mews
-  ai_category: sync_issue
-  ai_priority: P2
-  ai_confidence: high
-  ai_resolution_suggestion: "Group bookings sync as individual reservations \u2014 this is a known limitation. There is no\
-    \ group linking available in the integration. Workaround: use the Mews group_id field in reservation notes to manually\
-    \ associate them."
-  resolution_notes: Documented limitation. Customer uses group_id in notes field for manual tracking in the guest platform.
-  source_docs_referenced:
-  - mews
-  escalation_recommended: false
-- subject: Mews guest notes truncated in the guest platform
-  description: We put detailed guest preferences in Mews notes (dietary restrictions, room preferences, etc.) but they're
-    being cut off in the guest platform at around 500 characters.
-  pms_system: mews
-  ai_category: sync_issue
-  ai_priority: P3
-  ai_confidence: high
-  ai_resolution_suggestion: Guest notes are truncated to 500 characters during sync. This is a known limitation. Split long
-    notes into the notes field (first 500 chars) and use custom fields for additional data.
-  resolution_notes: Customer restructured notes to keep critical info under 500 chars. Extended preferences moved to custom
-    fields.
-  source_docs_referenced:
-  - mews
-  escalation_recommended: false
-- subject: Cloudbeds reservation sync delayed by 5+ minutes
-  description: New reservations created in Cloudbeds are taking over 5 minutes to appear in our guest platform. Guests are
-    checking in before we have their data.
-  pms_system: cloudbeds
-  ai_category: sync_issue
-  ai_priority: P2
-  ai_confidence: high
-  ai_resolution_suggestion: Cloudbeds uses polling-based sync with a 5-minute interval. Real-time webhooks are not available.
-    This is expected behavior. If faster sync is required, consider implementing direct Cloudbeds API polling at a shorter
-    interval (minimum 2 minutes per API rate limits).
-  resolution_notes: Explained polling architecture. Customer accepted 5-min delay and adjusted check-in workflow to account
-    for sync lag.
-  source_docs_referenced:
-  - cloudbeds
-  escalation_recommended: false
-- subject: Cloudbeds OTA booking missing guest address
-  description: Bookings coming through Expedia into Cloudbeds are missing the guest address field when they sync to the guest platform.
-    Airbnb bookings have the address.
-  pms_system: cloudbeds
-  ai_category: bug
-  ai_priority: P2
-  ai_confidence: high
-  ai_resolution_suggestion: 'This is a known Cloudbeds API limitation (BUG-C001). The OTA passthrough is missing the address
-    field specifically for Expedia bookings. Airbnb and Booking.com addresses work correctly. Workaround: request address
-    directly from guest via guest platform pre-arrival form.'
-  resolution_notes: Confirmed BUG-C001. Customer added address collection to the guest platform pre-arrival questionnaire for Expedia bookings.
-  source_docs_referenced:
-  - cloudbeds
-  escalation_recommended: false
-- subject: Duplicate reservations in Cloudbeds when guest changes dates
-  description: When a guest modifies their stay dates in the OTA, we're getting a duplicate reservation record in the guest platform instead
-    of an update to the existing one.
-  pms_system: cloudbeds
-  ai_category: bug
-  ai_priority: P1
-  ai_confidence: high
-  ai_resolution_suggestion: Known bug BUG-C002. When a guest modifies dates during the 5-minute polling window, the system
-    can create a duplicate record instead of updating. Implement deduplication logic using the Cloudbeds reservation_id as
-    a unique key.
-  resolution_notes: Implemented upsert logic keyed on reservation_id. Duplicate records no longer created on date modifications.
-  source_docs_referenced:
-  - cloudbeds
-  escalation_recommended: false
-- subject: Cloudbeds rate sync failing silently
-  description: We updated rates in Cloudbeds but they're not showing up in our guest platform system. No error messages anywhere.
-  pms_system: cloudbeds
-  ai_category: bug
-  ai_priority: P2
-  ai_confidence: high
-  ai_resolution_suggestion: Rate sync silently fails when there's a currency mismatch between Cloudbeds and the guest platform
-    (BUG-C003). Verify both systems are configured with the same currency. Also note that rate sync is limited to BAR only
-    and changes take up to 15 minutes to propagate.
-  resolution_notes: 'Found currency mismatch: Cloudbeds in USD, the guest platform in EUR. After alignment, rate sync resumed. Documented
-    15-min propagation delay.'
-  source_docs_referenced:
-  - cloudbeds
-  escalation_recommended: false
-- subject: Cloudbeds guest notes not syncing to the guest platform
-  description: We add special requests and preferences as guest notes in Cloudbeds but nothing appears in the guest platform profile.
-  pms_system: cloudbeds
-  ai_category: not_supported
-  ai_priority: P3
-  ai_confidence: high
-  ai_resolution_suggestion: 'Guest notes sync is not supported in the Cloudbeds integration. The Cloudbeds API does not expose
-    guest notes in a structured way. Workaround: use Cloudbeds custom fields, which do sync to the guest platform.'
-  resolution_notes: Confirmed not supported. Customer migrated critical notes to custom fields which sync correctly.
-  source_docs_referenced:
-  - cloudbeds
-  escalation_recommended: false
-- subject: Cloudbeds bulk rate update timing out
-  description: When we try to update more than 50 rates at once in Cloudbeds, the sync to the guest platform times out and none of the
-    rates are updated.
-  pms_system: cloudbeds
+
+- subject: ACH bank transfer not marked as paid for 4 days
+  description: Customer paid via ACH on Monday but our system still shows the invoice as outstanding on
+    Friday. The charge object exists in Stripe but charge.succeeded never fired.
+  integration: stripe
   ai_category: config
   ai_priority: P2
   ai_confidence: high
-  ai_resolution_suggestion: Bulk rate updates exceeding 50 rates are known to timeout. Split rate updates into batches of
-    25 or fewer. The Cloudbeds API has rate limiting that causes timeouts on large batch operations.
-  resolution_notes: Customer implemented batched rate updates (25 per batch with 30s delay between batches). All rates now
-    sync successfully.
+  ai_resolution_suggestion: ACH transfers settle 3-5 business days after initiation. The charge.succeeded
+    webhook fires only after the bank confirms settlement, not at initiation. Surface an "Initiated, awaiting
+    settlement" state in your UI for ACH payments and treat them as paid only on the succeeded event.
+  resolution_notes: Added pending-settlement state to invoice UI. Support escalations on ACH dropped by ~80%.
   source_docs_referenced:
-  - cloudbeds
+  - stripe
   escalation_recommended: false
-- subject: Hostaway webhook missing guest email on direct bookings
-  description: Direct bookings through our website that go into Hostaway are syncing to the guest platform without the guest email address.
-    OTA bookings have the email.
-  pms_system: hostaway
-  ai_category: bug
-  ai_priority: P2
-  ai_confidence: high
-  ai_resolution_suggestion: 'Known issue BUG-H001. The webhook payload occasionally omits guest email for direct bookings.
-    Implement a retry mechanism: if email is missing, re-fetch the reservation from the Hostaway API after 30 seconds.'
-  resolution_notes: Implemented 30-second retry on missing email. Success rate improved from 85% to 99% for direct booking
-    email capture.
-  source_docs_referenced:
-  - hostaway
-  escalation_recommended: false
-- subject: Hostaway rate sync creating duplicate entries
-  description: After re-mapping a listing in Hostaway, we're seeing duplicate rate entries in the guest platform. The old rates weren't
-    removed and new ones were added on top.
-  pms_system: hostaway
-  ai_category: bug
-  ai_priority: P2
-  ai_confidence: high
-  ai_resolution_suggestion: 'Known bug BUG-H002. When a listing is re-mapped, rate sync creates duplicate entries instead
-    of replacing. Workaround: manually delete old rate entries in guest platform before re-mapping the listing.'
-  resolution_notes: Customer cleaned up duplicate rates manually. Added pre-remap checklist to internal docs to prevent recurrence.
-  source_docs_referenced:
-  - hostaway
-  escalation_recommended: false
-- subject: Hostaway no-show cancellation not triggering webhook
-  description: When Hostaway auto-cancels a reservation due to no-show, our guest platform doesn't get notified. Manual cancellations
-    work fine.
-  pms_system: hostaway
-  ai_category: bug
-  ai_priority: P1
-  ai_confidence: high
-  ai_resolution_suggestion: Known bug BUG-H003. The reservation cancel webhook is not fired for no-show auto-cancellations.
-    Implement a nightly reconciliation job that compares active reservations in Hostaway with those in the guest platform.
-  resolution_notes: Implemented nightly reconciliation job at 2 AM. No-show cancellations now detected within 24 hours maximum.
-  source_docs_referenced:
-  - hostaway
-  escalation_recommended: false
-- subject: Hostaway bulk rate sync not available
-  description: We need to update rates across 50 listings simultaneously in Hostaway but the integration doesn't seem to support
-    bulk operations.
-  pms_system: hostaway
-  ai_category: not_supported
-  ai_priority: P2
-  ai_confidence: high
-  ai_resolution_suggestion: Bulk rate sync across multiple listings is not available via the Hostaway API. Rate updates must
-    be done per-listing. For bulk operations, consider scripting individual API calls with appropriate rate limiting.
-  resolution_notes: Confirmed not supported. Customer built internal script to iterate through listings with 2-second delays
-    between API calls.
-  source_docs_referenced:
-  - hostaway
-  escalation_recommended: false
-- subject: Hostaway weekly rates not syncing
-  description: We set up weekly rates in Hostaway for our vacation rentals but only the nightly rates are showing in the guest platform.
-  pms_system: hostaway
+
+- subject: Cannot pay out to sub-merchants from Standard account
+  description: We want to split each charge between us and a partner. Our current Stripe Standard account
+    doesn't expose the destination parameter on the charge — is this supported?
+  integration: stripe
   ai_category: not_supported
   ai_priority: P3
   ai_confidence: high
-  ai_resolution_suggestion: Rate sync is supported for nightly rates only. Weekly and monthly rates are not synced through
-    the integration. Display weekly rates in the guest platform by configuring them directly in the guest platform.
-  resolution_notes: Confirmed limitation. Customer manually configured weekly rates in the guest platform and added note to listing sync
-    documentation.
+  ai_resolution_suggestion: Sub-merchant payouts are not available in Stripe Standard accounts. The destination
+    and on_behalf_of parameters require a Stripe Connect account (Express, Custom, or full Standard Connect).
+    Migrate to Connect or handle splits via Stripe Treasury / manual transfers.
+  resolution_notes: Customer migrated to Stripe Connect Express. Sub-merchant payouts now flowing.
   source_docs_referenced:
-  - hostaway
+  - stripe
   escalation_recommended: false
-- subject: Hostaway guest phone format causing sync failures
-  description: Some guest phone numbers from European bookings are failing to sync from Hostaway to the guest platform. US phone numbers
-    work fine.
-  pms_system: hostaway
-  ai_category: config
+
+- subject: Twilio status callbacks arriving out of order
+  description: We're receiving the "delivered" status callback before the "sent" callback for the same SMS
+    SID. Our state machine flips back to "sent" after marking the message delivered.
+  integration: twilio
+  ai_category: bug
   ai_priority: P2
   ai_confidence: high
-  ai_resolution_suggestion: Guest phone numbers must be in E.164 format for sync to work. Non-standard formats (missing country
-    code, spaces, dashes) cause the sync to silently skip the phone field. Implement phone number normalization before sync.
-  resolution_notes: Implemented E.164 normalization layer using libphonenumber. All phone formats now convert correctly before
-    sync.
+  ai_resolution_suggestion: 'Known issue BUG-T001. Status callbacks are not strictly ordered by arrival time.
+    Sort transitions by the date_updated field on the message rather than by webhook arrival, and ignore
+    transitions that move state backwards.'
+  resolution_notes: Updated state machine to use date_updated as authoritative ordering. Backward-transition
+    bug eliminated.
   source_docs_referenced:
-  - hostaway
+  - twilio
   escalation_recommended: false
-- subject: Guest platform not receiving messages from Cloudbeds guests
-  description: Guests are sending messages through the Cloudbeds portal but they're not appearing in the guest platform. Outbound messages
-    from the guest platform to guests work fine.
-  pms_system: cloudbeds
-  ai_category: not_supported
-  ai_priority: P2
-  ai_confidence: high
-  ai_resolution_suggestion: The Cloudbeds integration only supports outbound messages. Inbound message sync from Cloudbeds
-    to the guest platform is not available. Guests should be directed to use the guest platform messaging channel directly.
-  resolution_notes: Confirmed one-way messaging limitation. Customer updated guest communications to direct inquiries to the guest platform
-    portal.
-  source_docs_referenced:
-  - cloudbeds
-  escalation_recommended: false
-- subject: Guest platform only receiving plain text from Cloudbeds
-  description: Messages sent from Cloudbeds to the guest platform are losing all formatting. Bold, links, and images are stripped.
-  pms_system: cloudbeds
-  ai_category: not_supported
+
+- subject: Twilio SMS billing higher than expected for unicode messages
+  description: Our message templates include the € symbol and curly braces. We're being charged for 2 segments
+    even when the message is short enough to fit in 1.
+  integration: twilio
+  ai_category: billing
   ai_priority: P3
   ai_confidence: high
-  ai_resolution_suggestion: The Cloudbeds messaging integration only supports plain text. Rich formatting, links,
-    and attachments are not available. This is a known limitation of the guest platform messaging API.
-  resolution_notes: Documented limitation. Customer simplified message templates to plain text format.
+  ai_resolution_suggestion: 'Known accounting quirk BUG-T002. Characters in the GSM-7 Extended Table (€, {, },
+    [, ], ~, ^, |, \\) each count as 2 characters for segment calculation, even though the message looks
+    short. Either avoid these characters in templates or budget for the higher per-message cost.'
+  resolution_notes: Replaced € with EUR and curly braces with parens in templates. Per-message cost reduced
+    ~35%.
   source_docs_referenced:
-  - cloudbeds
+  - twilio
   escalation_recommended: false
-- subject: Mews scheduled messages firing at wrong time
-  description: We set up pre-arrival messages to send at 2 PM local time but they're being sent at 2 PM UTC instead of the
-    property's timezone.
-  pms_system: mews
-  ai_category: config
+
+- subject: Twilio Verify OTP arriving 2+ minutes late in Brazil
+  description: Customers in Brazil are reporting OTP SMS taking 2-3 minutes to arrive during peak hours.
+    US and EU numbers work fine. Login conversion is dropping.
+  integration: twilio
+  ai_category: sync_issue
   ai_priority: P2
   ai_confidence: medium
-  ai_resolution_suggestion: Scheduled messages may fire based on PMS timezone rather than property timezone. Verify that the
-    timezone is correctly configured in both Mews and the guest platform. If they differ, the PMS timezone takes precedence for message
-    scheduling.
-  resolution_notes: Timezone mismatch confirmed. Set Mews property timezone to match local timezone. Messages now fire at
-    correct local time.
+  ai_resolution_suggestion: 'Known regional issue BUG-T003. Brazilian carrier delivery is delayed >2 min
+    during peak hours due to upstream queue backlog. Recommended workaround: fall back to the voice channel
+    for BR numbers via the Verify API channel parameter when SMS exceeds 30s.'
+  resolution_notes: Added voice fallback for Brazilian numbers after 30s SMS timeout. Login completion in
+    BR recovered to ~95%.
   source_docs_referenced:
-  - mews
-  escalation_recommended: false
-- subject: Hostaway listing description cut off in the guest platform
-  description: Our detailed property descriptions in Hostaway are being truncated when they sync to the guest platform. We're losing important
-    amenity information.
-  pms_system: hostaway
-  ai_category: sync_issue
+  - twilio
+  escalation_recommended: true
+
+- subject: Bulk SMS rejected without an A2P 10DLC campaign
+  description: We're sending notification SMS to 10,000+ US numbers and Twilio is returning 30007 errors.
+    These worked fine 6 months ago.
+  integration: twilio
+  ai_category: config
+  ai_priority: P1
+  ai_confidence: high
+  ai_resolution_suggestion: Bulk SMS to US numbers now requires a registered Messaging Service with A2P
+    10DLC campaign registration. US carriers enforce this for all application-to-person traffic. Register
+    a brand and campaign in the Twilio console; approval takes 1-3 business days. Use a toll-free or
+    short code as a stopgap.
+  resolution_notes: Registered A2P 10DLC campaign for the brand. Bulk send throughput restored after 2 days.
+  source_docs_referenced:
+  - twilio
+  escalation_recommended: true
+
+- subject: SendGrid event webhook signature verification failing
+  description: Our event webhook handler started rejecting payloads with 401 last week. Same secret as
+    before. We noticed it happens on messages containing emoji in the subject line.
+  integration: sendgrid
+  ai_category: bug
+  ai_priority: P1
+  ai_confidence: high
+  ai_resolution_suggestion: 'Known bug BUG-G001. Event webhook signatures fail when the payload contains
+    unicode emoji because SendGrid signs the normalized form but transports the raw bytes. Workaround:
+    normalize the request body to NFC (unicodedata.normalize(''NFC'', body)) before computing the verification
+    signature.'
+  resolution_notes: Added NFC normalization step before Ed25519 verification. Webhook rejection rate fell
+    from 12% to 0%.
+  source_docs_referenced:
+  - sendgrid
+  escalation_recommended: true
+
+- subject: Click events firing twice for the same link
+  description: Our analytics shows double click-throughs on every email link. Looking at the event webhook
+    payloads, we receive two click events with the same sg_event_id within ~80ms of each other.
+  integration: sendgrid
+  ai_category: bug
   ai_priority: P3
   ai_confidence: high
-  ai_resolution_suggestion: Listing descriptions over 2000 characters are truncated during sync. Keep descriptions under 2000
-    characters or split additional information into custom fields which sync separately.
-  resolution_notes: Customer shortened descriptions to under 2000 chars and moved detailed amenity info to custom fields.
+  ai_resolution_suggestion: 'Known issue BUG-G002. Click events occasionally duplicate within a ~100ms window.
+    Deduplicate by sg_event_id with a 5s window before counting click-throughs in analytics.'
+  resolution_notes: Added sg_event_id dedupe in analytics ingestion. Click counts now match expected ratios.
   source_docs_referenced:
-  - hostaway
+  - sendgrid
   escalation_recommended: false
-- subject: Mews message templates not syncing to guest platform
-  description: We created message templates in Mews but they're not showing up in our guest platform template library. We expected
-    them to sync.
-  pms_system: mews
-  ai_category: not_supported
-  ai_priority: P3
-  ai_confidence: high
-  ai_resolution_suggestion: Message templates are not synced between Mews and guest platforms. Templates must be created independently
-    in each system. This is a known limitation of the messaging integration.
-  resolution_notes: Confirmed not supported. Customer manually recreated templates in the guest platform.
-  source_docs_referenced:
-  - mews
-  escalation_recommended: false
-- subject: Hostaway multi-unit booking showing as separate reservations
-  description: A guest booked 3 units for the same dates in Hostaway but they show up as 3 unrelated reservations in the guest platform.
-  pms_system: hostaway
-  ai_category: sync_issue
+
+- subject: Suppression list bulk import losing some emails
+  description: We uploaded a 50k-row suppression CSV but the list only shows 49,732 entries afterwards.
+    No error returned. The missing entries appear random.
+  integration: sendgrid
+  ai_category: bug
   ai_priority: P2
   ai_confidence: high
-  ai_resolution_suggestion: 'Multi-unit bookings sync as separate reservations with no parent linking. This is a known limitation.
-    Workaround: use the Hostaway booking group_id in reservation metadata to manually associate related bookings.'
-  resolution_notes: Documented limitation. Customer uses group_id field for manual association in the guest platform.
+  ai_resolution_suggestion: 'Known bug BUG-G003. Suppression list bulk import silently drops emails with
+    leading or trailing whitespace. Trim every row before upload (strip on email field) and re-upload
+    the dropped entries.'
+  resolution_notes: Added trim step to upload pipeline. Re-import recovered all 268 missing entries.
   source_docs_referenced:
-  - hostaway
+  - sendgrid
   escalation_recommended: false
-- subject: Cloudbeds check-in time not syncing
-  description: Cloudbeds has our check-in time set to 3 PM but the guest platform just shows the date without any time. Guests are confused
-    about when they can arrive.
-  pms_system: cloudbeds
+
+- subject: BIMI logo not appearing in Gmail
+  description: We set up BIMI on our sending domain and have a valid SVG hosted on our server, but the logo
+    is not appearing next to messages in Gmail or Yahoo Mail.
+  integration: sendgrid
   ai_category: not_supported
   ai_priority: P3
   ai_confidence: high
-  ai_resolution_suggestion: The Cloudbeds API exposes check-in and check-out dates but not specific times. This data is not
-    available for sync. Configure check-in/check-out times directly in the guest platform settings.
-  resolution_notes: Confirmed API limitation. Customer configured static check-in/check-out times in the guest platform property settings.
+  ai_resolution_suggestion: BIMI logo display in major mailbox providers (Gmail, Yahoo, Apple Mail) requires
+    a Verified Mark Certificate (VMC) issued by a trusted CA. SVG alone is not sufficient. Purchase a VMC
+    through DigiCert or Entrust (~$1,500/yr) and reference it via the l= and a= tags in your BIMI DNS record.
+  resolution_notes: Customer acquired a VMC. BIMI logo now showing in Gmail within 48h of DNS propagation.
   source_docs_referenced:
-  - cloudbeds
-  escalation_recommended: false
-- subject: Mews housekeeping status not visible in the guest platform
-  description: Our front desk wants to see real-time housekeeping status from Mews in the guest platform guest app but it's not showing.
-  pms_system: mews
-  ai_category: not_supported
-  ai_priority: P3
-  ai_confidence: high
-  ai_resolution_suggestion: Housekeeping status sync is not supported in the Mews integration. Housekeeping data is not exposed
-    through the integration API. For real-time housekeeping status, use the Mews dashboard directly.
-  resolution_notes: Confirmed not supported. Customer uses Mews Commander for housekeeping management separately.
-  source_docs_referenced:
-  - mews
+  - sendgrid
   escalation_recommended: false

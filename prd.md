@@ -1,9 +1,16 @@
 
-Hospitality Integration Support Assistant
-Logfire Observability Demo App — 4-Hour Build Spec
+Integration Support Assistant
+Logfire Observability Demo App — Original Build Spec
+
+> Note: this PRD captures the original spec and may be partially out of sync with the
+> current code. The integrations have been generalized from PMS-specific to common
+> developer integrations (Stripe / Twilio / SendGrid); the rest of the build still
+> reflects the same shape and Logfire features.
 
 1. Overview
-A realistic support tool for hospitality tech teams. A user submits a ticket describing an integration issue between a Property Management System (PMS) and a Guest Experience Platform. An AI agent investigates using three tools, returns a structured resolution, and every step is fully traced in Logfire.
+A realistic internal support tool. A user submits a ticket describing an issue with a third-party
+integration (e.g. Stripe, Twilio, SendGrid). An AI agent investigates using four tools, returns a
+structured resolution, and every step is fully traced in Logfire.
 
 The demo punchline: open Logfire alongside the running app and show a single ticket as a trace tree — HTTP request → DB write → AI agent → 2–3 dynamic tool calls → structured result.
 
@@ -19,9 +26,9 @@ Evals	Pydantic Evals — offline + online
 Four pre-written markdown files in /data/docs/. Intentionally imperfect — some things are ambiguous so the AI occasionally returns low confidence. Each doc uses consistent section headers: ✅ Supported / ⚠️ Partial/quirks / ❌ Not supported / 🐛 Known bugs
 
 File	System	Key content
-mews_integration.md	Mews PMS	Webhook events, nullable fields, early check-in limits
-cloudbeds_integration.md	Cloudbeds PMS	Rate sync limits, OTA passthrough, field mapping issues
-hostaway_integration.md 
+stripe.yaml	Stripe Payments	Payment Intents, webhooks, refunds, known bugs (BUG-S###)
+twilio.yaml	Twilio Programmable Messaging	SMS / voice / Verify, A2P 10DLC, known bugs (BUG-T###)
+sendgrid.yaml	SendGrid Email	Transactional send, event webhook, suppressions, known bugs (BUG-G###)
 
 Common topics: 
 Listing sync
@@ -55,8 +62,7 @@ Messaging:
 4. App Data Model (SQLite)
 tickets
 id, created_at, subject, description, submitted_by
-pms_system          (mews | opera | cloudbeds)
-guest_platform      (canary | duve | roomkey)
+integration         (stripe | twilio | sendgrid)
 status              (open | resolved | escalated)
 ai_category
 ai_priority

@@ -1,0 +1,48 @@
+system: stripe
+display_name: Stripe Payments
+
+supported:
+  - title: "Payments API"
+    items:
+      - "Payment Intents (one-time charges) with 3DS / SCA support"
+      - "Refunds (full and partial), exposed via /v1/refunds"
+      - "Customers and saved payment methods (cards, wallets)"
+      - "Idempotency keys honored on all POST endpoints"
+  - title: "Webhooks"
+    items:
+      - "Standard event types: charge.succeeded, charge.failed, charge.refunded"
+      - "payment_intent.succeeded, payment_intent.payment_failed"
+      - "customer.subscription.* family for billing"
+      - "Signed payloads (Stripe-Signature header) with 5-minute tolerance"
+  - title: "Subscriptions"
+    items:
+      - "Recurring billing (daily, weekly, monthly, yearly)"
+      - "Proration on plan changes (prorate_upgrades / prorate_downgrades)"
+      - "Trial periods and metered billing via usage_records"
+
+partial:
+  - title: "Payments Quirks"
+    items:
+      - "ACH transfers settle 3-5 business days after initiation — verify status before treating as paid"
+      - "SEPA debits do not produce a charge.succeeded until they clear (~5 business days)"
+      - "Payment method save on first charge requires setup_future_usage=off_session"
+  - title: "Webhooks Quirks"
+    items:
+      - "Delivery is at-least-once — consumers must dedupe on event id"
+      - "Order of arrival is not guaranteed (test_clock and live can interleave)"
+      - "Webhook retries continue for up to 3 days with exponential backoff"
+
+not_supported:
+  - title: "Features Not Available"
+    items:
+      - "Sub-merchant payouts in Stripe Standard accounts (use Stripe Connect)"
+      - "Cash on Delivery / pay-later flows outside Klarna / Afterpay"
+      - "Cross-currency settlement on Standard accounts (only on Stripe Treasury)"
+      - "Custom retry schedule for failed subscription invoices (Smart Retries only)"
+
+known_bugs:
+  - title: "Active Issues"
+    items:
+      - "BUG-S001: Duplicate charge.succeeded webhooks fire when an idempotency key collides with a retried POST — dedupe on event.id"
+      - "BUG-S002: payment_method.detached event occasionally missing customer field on default-method removal — re-fetch via /v1/payment_methods"
+      - "BUG-S003: Refund webhook delayed up to 10 minutes during high-load periods (>500 refunds/min) — poll /v1/refunds as fallback"

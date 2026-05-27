@@ -1,0 +1,47 @@
+system: sendgrid
+display_name: SendGrid Email
+
+supported:
+  - title: "Sending"
+    items:
+      - "Transactional send via /v3/mail/send (one-shot and batched)"
+      - "Dynamic Templates with Handlebars-style substitutions"
+      - "Categories and custom_args for per-message tagging"
+      - "Scheduled send via send_at (up to 72h in future)"
+  - title: "Event Webhook"
+    items:
+      - "Delivery events: processed, delivered, deferred, dropped, bounce"
+      - "Engagement events: open, click, unsubscribe, spamreport, group_unsubscribe"
+      - "Signed event webhooks (Ed25519) — verify with X-Twilio-Email-Event-Webhook-Signature"
+  - title: "Suppressions & Compliance"
+    items:
+      - "Global and group-level unsubscribe lists"
+      - "Bounce, block, and invalid-email suppression APIs"
+      - "Sender authentication: SPF, DKIM, DMARC alignment"
+
+partial:
+  - title: "Sending Quirks"
+    items:
+      - "Single send_at applies to all personalizations in a batched request"
+      - "Attachments inline-encoded as base64 — 30 MB total request size limit"
+      - "Custom unsubscribe links require ASM group set up in advance"
+  - title: "Event Webhook Quirks"
+    items:
+      - "Events may arrive out of order — sort by timestamp, not arrival"
+      - "Click tracking rewrites URLs — embedded UTM params can be appended twice if already present"
+      - "Open tracking pixel requires images-enabled clients to fire"
+
+not_supported:
+  - title: "Features Not Available"
+    items:
+      - "Per-recipient retry schedule (uses SendGrid's default 72h ramp)"
+      - "Synchronous bounce response on /v3/mail/send — bounces only surface via event webhook"
+      - "Inbox-folder targeting (Promotions vs Primary) — handled by recipient mailbox provider"
+      - "BIMI logo display without verified VMC certificate"
+
+known_bugs:
+  - title: "Active Issues"
+    items:
+      - "BUG-G001: Event webhook signature verification fails when payload contains unicode emoji — known encoding issue, normalize to NFC before verifying"
+      - "BUG-G002: Click events occasionally fire twice for the same URL inside 100ms — dedupe on sg_event_id within a 5s window"
+      - "BUG-G003: Suppression list bulk import silently drops emails with leading/trailing whitespace — trim before upload"

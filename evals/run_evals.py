@@ -22,7 +22,7 @@ from src.config import settings
 from src.knowledge import build_doc_chunks, load_integration_docs
 from src.main import app
 from src.models import Base
-from src.pms_status_app import app as pms_status_app
+from src.status_service_app import app as status_service_app
 from src.schemas import EscalationEntry, TicketInput, TicketResolution
 from src.seed import seed_tickets
 
@@ -48,10 +48,10 @@ async def _setup_eval_db() -> async_sessionmaker[AsyncSession]:
 
 
 async def main(args: argparse.Namespace):
-    # Boot both app lifespans so check_pms_status can route via ASGI
+    # Boot both app lifespans so check_service_status can route via ASGI
     async with (
         app.router.lifespan_context(app),
-        pms_status_app.router.lifespan_context(pms_status_app),
+        status_service_app.router.lifespan_context(status_service_app),
     ):
         # Load knowledge base
         docs = load_integration_docs()
@@ -66,8 +66,8 @@ async def main(args: argparse.Namespace):
         # Set up eval DB
         session_factory = await _setup_eval_db()
 
-        # ASGI transport so check_pms_status routes to the PMS status app
-        pms_status_transport = ASGITransport(app=pms_status_app)
+        # ASGI transport so check_service_status routes to the status app
+        status_service_transport = ASGITransport(app=status_service_app)
 
         async def task_fn(inputs: TicketInput) -> TicketResolution:
             """Run the agent on a single eval case."""
@@ -76,10 +76,10 @@ async def main(args: argparse.Namespace):
                     db_session=session,
                     doc_chunks=doc_chunks,
                     escalation_configs=escalation_configs,
-                    pms_system=inputs.pms_system,
+                    integration=inputs.integration,
                     app_base_url=EVAL_BASE_URL,
-                    pms_status_base_url=EVAL_BASE_URL,
-                    pms_status_transport=pms_status_transport,
+                    status_service_base_url=EVAL_BASE_URL,
+                    status_service_transport=status_service_transport,
                 )
                 result = await support_agent.run(
                     format_ticket_prompt(None, inputs),
@@ -113,7 +113,7 @@ async def main(args: argparse.Namespace):
         report = await dataset.evaluate(
             task_fn,
             max_concurrency=2,
-            name=f"hospitality-{args.source}",
+            name=f"integration-support-{args.source}",
             metadata=meta,
         )
         report.print(

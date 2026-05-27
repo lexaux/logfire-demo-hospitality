@@ -1,0 +1,46 @@
+system: twilio
+display_name: Twilio Programmable Messaging
+
+supported:
+  - title: "Messaging"
+    items:
+      - "SMS (outbound and inbound) via Programmable Messaging"
+      - "MMS with attachments up to 5 MB"
+      - "Messaging Services with sticky sender + intelligent routing"
+      - "Status callbacks: queued, sent, delivered, undelivered, failed"
+  - title: "Voice"
+    items:
+      - "Programmable Voice: outbound and inbound, TwiML-driven flows"
+      - "Call recordings with optional dual-channel mode"
+      - "Conference rooms (up to 250 participants)"
+  - title: "Identity / Compliance"
+    items:
+      - "A2P 10DLC campaign registration for US carriers"
+      - "Toll-free verification flow"
+      - "Verify API: SMS, voice, email OTP"
+
+partial:
+  - title: "Messaging Quirks"
+    items:
+      - "International SMS throughput throttled by destination carrier — apply per-country rate limits"
+      - "MMS not supported by all destination carriers; falls back to SMS-with-link silently"
+      - "Long messages (>160 chars / >70 GSM-7) are segmented; per-segment pricing applies"
+  - title: "Voice Quirks"
+    items:
+      - "Recording start may lag 1-2s after answer event"
+      - "Conference participant limit varies by region (lower in EU)"
+
+not_supported:
+  - title: "Features Not Available"
+    items:
+      - "RCS Business Messaging in all regions — currently US + select carriers only"
+      - "Native WhatsApp templates without prior approval flow (24h-48h)"
+      - "Bulk SMS without a registered Messaging Service in US (A2P 10DLC required)"
+      - "Inbound MMS from international short codes"
+
+known_bugs:
+  - title: "Active Issues"
+    items:
+      - "BUG-T001: Status callbacks occasionally arrive out of order (delivered before sent) — sort by date_updated, not arrival"
+      - "BUG-T002: GSM-7 segmentation miscounts when message contains characters in the Extended Table (€, {, }, etc.) — each counts as 2"
+      - "BUG-T003: Verify API SMS delivery delayed >2 min for Brazilian numbers during peak hours — fallback to voice channel"

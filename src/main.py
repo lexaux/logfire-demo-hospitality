@@ -22,8 +22,8 @@ from src.seed import seed_tickets
 # App-level state populated at startup
 doc_chunks: list[dict] = []
 escalation_configs: list[EscalationEntry] = []
-# Set by tests/evals to route the agent's PMS-status HTTP calls through ASGI
-agent_pms_status_transport: httpx.AsyncBaseTransport | None = None
+# Set by tests/evals to route the agent's status-service HTTP calls through ASGI
+agent_status_service_transport: httpx.AsyncBaseTransport | None = None
 
 logfire.configure(
     environment="local",
@@ -72,7 +72,7 @@ async def create_ticket(ticket_in: TicketCreate):
         ticket = Ticket(
             subject=ticket_in.subject,
             description=ticket_in.description,
-            pms_system=ticket_in.pms_system,
+            integration=ticket_in.integration,
             status="open",
         )
         session.add(ticket)
@@ -85,10 +85,10 @@ async def create_ticket(ticket_in: TicketCreate):
             db_session=session,
             doc_chunks=doc_chunks,
             escalation_configs=escalation_configs,
-            pms_system=ticket_in.pms_system,
+            integration=ticket_in.integration,
             app_base_url=settings.app_base_url,
-            pms_status_base_url=settings.pms_status_base_url,
-            pms_status_transport=agent_pms_status_transport,
+            status_service_base_url=settings.status_service_base_url,
+            status_service_transport=agent_status_service_transport,
         )
 
         # Structured wrapper span — input + output match the curated dataset
@@ -109,6 +109,9 @@ async def create_ticket(ticket_in: TicketCreate):
                 raise HTTPException(status_code=500, detail=f"Agent error: {e}") from e
 
             ticket_span.set_attribute("resolution", resolution.model_dump(mode="json"))
+            span_ctx = ticket_span.get_span_context()
+            trace_id_hex = format(span_ctx.trace_id, "032x")
+            span_id_hex = format(span_ctx.span_id, "016x")
 
         # Update ticket with AI results
         ticket.ai_category = resolution.category
@@ -123,7 +126,10 @@ async def create_ticket(ticket_in: TicketCreate):
         await session.commit()
         await session.refresh(ticket)
 
-        return TicketResponse.model_validate(ticket)
+        response = TicketResponse.model_validate(ticket)
+        response.trace_id = trace_id_hex
+        response.span_id = span_id_hex
+        return response
 
 
 @app.get("/api/tickets", response_model=list[TicketResponse])
@@ -172,7 +178,9 @@ async def get_tickets_by_ids(ids: str):
 @app.get("/api/config")
 async def get_config():
     return {
-        "pms_systems": ["mews", "cloudbeds", "hostaway"],
+        "integrations": ["stripe", "twilio", "sendgrid"],
+        "logfire_write_token": settings.logfire_browser_write_token,
+        "logfire_otlp_endpoint": settings.logfire_otlp_endpoint,
     }
 
 

@@ -1,4 +1,4 @@
-"""Eval dataset: 8 test cases for the hospitality support agent."""
+"""Eval dataset: 8 test cases for the integration support agent."""
 
 from __future__ import annotations
 
@@ -9,21 +9,21 @@ from src.llm import llm_model
 from src.schemas import TicketInput, TicketResolution
 
 dataset = Dataset[TicketInput, TicketResolution, None](
-    name="hospitality-support-default",
+    name="integration-support-default",
     evaluators=[CategoryMatch(), PriorityMatch()],
     cases=[
-        # 1. Mews check-in not triggering message → sync_issue, P1, high
-        # "all properties" affected = outage across multiple properties = P1
+        # 1. Stripe webhook dropping on production traffic → sync_issue, P1, high
+        # "all merchants" = outage across the integration = P1
         Case(
-            name="mews_checkin_message_not_triggering",
+            name="stripe_webhook_not_arriving",
             inputs=TicketInput(
-                subject="Guest messages not triggering after Mews check-in",
+                subject="charge.succeeded webhooks not arriving in production",
                 description=(
-                    "After a guest checks in via Mews, the automated welcome message "
-                    "is not being sent through Canary. This started happening yesterday "
-                    "for all properties using Mews. No error in our logs."
+                    "Since this morning we've stopped receiving charge.succeeded webhooks "
+                    "from Stripe for all merchants. Payments are completing in the dashboard "
+                    "but our system never marks invoices paid. No errors in our logs."
                 ),
-                pms_system="mews",
+                integration="stripe",
             ),
             expected_output=TicketResolution(
                 category="sync_issue",
@@ -33,41 +33,41 @@ dataset = Dataset[TicketInput, TicketResolution, None](
                 escalation_recommended=True,
             ),
         ),
-        # 2. Hostaway bulk rate sync → not_supported, P1, high
-        # Agent correctly escalates P1 per system prompt rules
+        # 2. Twilio sub-merchant payout equivalent: bulk SMS without 10DLC blocked → not_supported, P1
+        # Customer can't ship a launch — agent should flag this clearly as a config requirement
         Case(
-            name="hostaway_bulk_rate_sync",
+            name="twilio_bulk_sms_no_a2p",
             inputs=TicketInput(
-                subject="Hostaway bulk rate sync not working",
+                subject="Bulk SMS to US numbers returning 30007 errors",
                 description=(
-                    "We need to push rate changes across 50+ listings at once "
-                    "through the Hostaway integration. The bulk rate update endpoint "
-                    "returns 404. This is blocking our revenue team."
+                    "We're trying to send 20,000 notification SMS to US customers via "
+                    "Twilio and getting error code 30007 on every send. We have a registered "
+                    "phone number but no Messaging Service. This is blocking our launch."
                 ),
-                pms_system="hostaway",
-            ),
-            expected_output=TicketResolution(
-                category="not_supported",
-                priority="P1",
-                confidence="high",
-                resolution_suggestion="placeholder",
-                escalation_recommended=True,
-            ),
-        ),
-        # 3. Early check-in upsell silent failure → config, P2, low (ambiguous)
-        Case(
-            name="mews_early_checkin_upsell_silent_fail",
-            inputs=TicketInput(
-                subject="Early check-in upsell not working, no error shown",
-                description=(
-                    "We configured early check-in upsell through Mews but guests "
-                    "are not seeing the offer. No errors in the dashboard. We've "
-                    "double-checked the configuration and it looks correct."
-                ),
-                pms_system="mews",
+                integration="twilio",
             ),
             expected_output=TicketResolution(
                 category="config",
+                priority="P1",
+                confidence="high",
+                resolution_suggestion="placeholder",
+                escalation_recommended=True,
+            ),
+        ),
+        # 3. SendGrid silent suppression drop on ambiguous symptom → config, P2, low (ambiguous)
+        Case(
+            name="sendgrid_suppression_silent_drop",
+            inputs=TicketInput(
+                subject="Suppression list import showing wrong count, no error",
+                description=(
+                    "We uploaded a 50k-row suppression CSV to SendGrid and it shows ~49,700 "
+                    "entries afterwards. No error was returned. We can't tell which addresses "
+                    "were dropped or why."
+                ),
+                integration="sendgrid",
+            ),
+            expected_output=TicketResolution(
+                category="bug",
                 priority="P2",
                 confidence="low",
                 resolution_suggestion="placeholder",
@@ -75,17 +75,18 @@ dataset = Dataset[TicketInput, TicketResolution, None](
             ),
             evaluators=(escalation_judge(llm_model),),
         ),
-        # 4. Webhook firing twice → bug, P1, high
+        # 4. Stripe duplicate charge.succeeded webhook → bug, P1, high
+        # BUG-S001: idempotency key + retried POST produces dupes
         Case(
-            name="mews_webhook_duplicate",
+            name="stripe_duplicate_webhook",
             inputs=TicketInput(
-                subject="Webhook firing twice on every reservation update",
+                subject="Duplicate charge.succeeded webhooks for the same payment",
                 description=(
-                    "Every time a reservation is updated in Mews, we receive two "
-                    "webhook events instead of one. This is causing duplicate "
-                    "processing and double-charging guests for add-ons."
+                    "Every time our worker retries a POST to /v1/payment_intents we receive "
+                    "two charge.succeeded webhooks with the same idempotency key. This is "
+                    "double-counting revenue in our reporting."
                 ),
-                pms_system="mews",
+                integration="stripe",
             ),
             expected_output=TicketResolution(
                 category="bug",
@@ -94,18 +95,18 @@ dataset = Dataset[TicketInput, TicketResolution, None](
                 resolution_suggestion="placeholder",
             ),
         ),
-        # 5. Cloudbeds OTA passthrough missing fields → bug, P2, high
-        # BUG-C001: "OTA passthrough missing address field for Expedia bookings"
+        # 5. SendGrid event webhook signature failing with emoji → bug, P2, high
+        # BUG-G001: NFC normalization needed
         Case(
-            name="cloudbeds_ota_passthrough_missing",
+            name="sendgrid_signature_emoji",
             inputs=TicketInput(
-                subject="Cloudbeds OTA reservation passthrough missing guest address",
+                subject="Event webhook signature verification failing intermittently",
                 description=(
-                    "Reservations coming through Expedia via Cloudbeds are missing "
-                    "the guest address field. Other OTA channels seem fine. This "
-                    "affects our pre-arrival communication workflow."
+                    "Our SendGrid event webhook handler is returning 401 on roughly 10% of "
+                    "events. Same secret as before. Pattern seems to be messages with emoji "
+                    "in the subject line."
                 ),
-                pms_system="cloudbeds",
+                integration="sendgrid",
             ),
             expected_output=TicketResolution(
                 category="bug",
@@ -114,18 +115,18 @@ dataset = Dataset[TicketInput, TicketResolution, None](
                 resolution_suggestion="placeholder",
             ),
         ),
-        # 6. Guest messaging delay >10 min → sync_issue, P2, low (ambiguous)
-        # Hostaway docs show Roomkey has "10 min delay" — agent correctly flags sync_issue
+        # 6. Twilio Verify OTP delivery delay → sync_issue, P2, low (ambiguous regional)
+        # BUG-T003: BR carriers delay >2 min during peak
         Case(
-            name="hostaway_messaging_delay",
+            name="twilio_verify_brazil_delay",
             inputs=TicketInput(
-                subject="Guest messaging delay over 10 minutes on Hostaway",
+                subject="Verify OTP arriving 2+ minutes late for Brazilian numbers",
                 description=(
-                    "Messages sent through our platform to Hostaway guests are "
-                    "taking over 10 minutes to arrive. We can't find any "
-                    "documentation about expected delivery times or rate limits."
+                    "Customers in Brazil are reporting Twilio Verify OTPs taking 2-3 minutes "
+                    "to arrive during peak hours. US and EU numbers are fine. We can't find "
+                    "documented delivery SLAs by region."
                 ),
-                pms_system="hostaway",
+                integration="twilio",
             ),
             expected_output=TicketResolution(
                 category="sync_issue",
@@ -136,16 +137,17 @@ dataset = Dataset[TicketInput, TicketResolution, None](
             ),
             evaluators=(escalation_judge(llm_model),),
         ),
-        # 7. Hostaway weekly rates not syncing → not_supported, P3, high
+        # 7. Stripe sub-merchant split payouts → not_supported, P3, high
         Case(
-            name="hostaway_weekly_rates_not_syncing",
+            name="stripe_sub_merchant_payouts",
             inputs=TicketInput(
-                subject="Hostaway weekly/monthly rate tiers not syncing",
+                subject="Cannot split a charge between us and a partner",
                 description=(
-                    "We set up weekly and monthly rate tiers in Hostaway but they "
-                    "are not appearing in our platform. Only nightly rates come through."
+                    "We want to split each charge between us and a partner using the destination "
+                    "parameter on Stripe charges. Our current Stripe account is a Standard account "
+                    "and the parameter doesn't seem to work."
                 ),
-                pms_system="hostaway",
+                integration="stripe",
             ),
             expected_output=TicketResolution(
                 category="not_supported",
@@ -154,18 +156,17 @@ dataset = Dataset[TicketInput, TicketResolution, None](
                 resolution_suggestion="placeholder",
             ),
         ),
-        # 8. Minibar sync not in docs → not_supported, P3, low (ambiguous)
-        # Not mentioned in docs at all = not_supported per prompt rules
+        # 8. SendGrid undocumented inbox-placement targeting → not_supported, P3, low (ambiguous)
         Case(
-            name="cloudbeds_minibar_sync_undocumented",
+            name="sendgrid_inbox_targeting_undocumented",
             inputs=TicketInput(
-                subject="Minibar consumption sync from Cloudbeds not documented",
+                subject="Force our emails into Gmail Primary instead of Promotions",
                 description=(
-                    "We'd like to sync minibar consumption data from Cloudbeds "
-                    "into our guest profile but can't find any documentation. "
-                    "Is this supported? If not, what's the workaround?"
+                    "Our transactional emails are landing in Gmail's Promotions tab instead of "
+                    "Primary. We can't find any SendGrid API to override the recipient mailbox "
+                    "categorization. Is this supported?"
                 ),
-                pms_system="cloudbeds",
+                integration="sendgrid",
             ),
             expected_output=TicketResolution(
                 category="not_supported",

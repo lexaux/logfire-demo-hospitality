@@ -1,4 +1,4 @@
-"""Custom evaluators for the hospitality support agent."""
+"""Custom evaluators for the integration support agent."""
 
 from __future__ import annotations
 
@@ -44,6 +44,7 @@ class CategoryMatch(Evaluator[TicketInput, TicketResolution, None]):
 
 
 _URL_RE = re.compile(r"https?://\S+")
+# Bug IDs: BUG-S### (Stripe), BUG-T### (Twilio), BUG-G### (SendGrid)
 _BUG_ID_RE = re.compile(r"\bBUG-[A-Z]\d+\b")
 _TICKET_ID_RE = re.compile(r"#\d+|\bticket[\s_-]?#?\d+\b", re.IGNORECASE)
 
@@ -119,8 +120,8 @@ def evidence_judge(model: Model | str) -> LLMJudge:
         rubric=(
             "Evaluate whether the agent's `resolution_suggestion` cites concrete evidence "
             "from the knowledge base. Concrete evidence means at least one of: "
-            "(a) a bug ID like BUG-M001 / BUG-C001 / BUG-H001, "
-            "(b) a named integration doc section (e.g. 'Mews webhooks', 'Cloudbeds OTA passthrough'), "
+            "(a) a bug ID like BUG-S001 / BUG-T001 / BUG-G001, "
+            "(b) a named integration doc section (e.g. 'Stripe webhooks', 'Twilio status callbacks'), "
             "(c) a referenced similar ticket id. "
             "Return True if the resolution cites at least one such concrete piece of evidence. "
             "Return False if it is generic advice with no traceable reference."
@@ -143,10 +144,10 @@ def resolution_quality_score(model: Model | str) -> LLMJudge:
             "Grade the agent's `resolution_suggestion` on a continuous 0.0–1.0 scale "
             "based on three criteria: "
             "(1) Actionability — does it tell the support team a concrete next step? "
-            "(2) Specificity — is it tailored to the ticket's PMS system and symptom, "
+            "(2) Specificity — is it tailored to the ticket's integration and symptom, "
             "or generic boilerplate? "
             "(3) Grounding — does it reflect real integration constraints (bug IDs, "
-            "doc sections, vendor status) rather than hallucinated capabilities? "
+            "doc sections, upstream service status) rather than hallucinated capabilities? "
             "Scoring guide: "
             "0.0 = wrong or harmful advice; "
             "0.25 = generic non-answer; "

@@ -1,17 +1,17 @@
-- pms_system: mews
+- integration: stripe
   sla_hours: 4
-  owner_team: integrations-core
+  owner_team: payments-platform
   currently_degraded: false
-  escalation_notes: "Mews API stable. Escalate P1s to #mews-oncall Slack channel."
+  escalation_notes: "Stripe API stable. Escalate P1s to #payments-oncall Slack channel."
 
-- pms_system: cloudbeds
+- integration: twilio
   sla_hours: 8
-  owner_team: integrations-partnerships
+  owner_team: comms-platform
   currently_degraded: false
-  escalation_notes: "Cloudbeds polling-based — check sync lag before escalating. Contact partner-eng for API issues."
+  escalation_notes: "Twilio messaging routes via Programmable Messaging. Contact comms-eng for A2P 10DLC issues."
 
-- pms_system: hostaway
+- integration: sendgrid
   sla_hours: 6
-  owner_team: integrations-vacation-rental
+  owner_team: email-platform
   currently_degraded: true
-  escalation_notes: "Hostaway webhook infrastructure currently degraded — expect delayed syncs. Engineering aware, ETA 48h."
+  escalation_notes: "SendGrid event webhook currently degraded — expect delayed engagement events. Engineering aware, ETA 48h."

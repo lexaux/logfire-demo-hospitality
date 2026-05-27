@@ -1,14 +1,14 @@
-- system: mews
+- system: stripe
   status: operational
   incident: null
   since: null
 
-- system: cloudbeds
+- system: twilio
   status: operational
   incident: null
   since: null
 
-- system: hostaway
+- system: sendgrid
   status: degraded
-  incident: "Webhook delivery delays — engineering aware, ETA 48h"
+  incident: "Event webhook delivery delays — engineering aware, ETA 48h"
   since: "2025-03-07T10:00:00Z"

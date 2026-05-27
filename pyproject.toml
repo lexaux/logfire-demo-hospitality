@@ -1,7 +1,7 @@
 [project]
 name = "demoapp"
 version = "0.1.0"
-description = "Hospitality Integration Support Assistant — Logfire Demo"
+description = "Integration Support Assistant — Logfire Demo"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115.0",

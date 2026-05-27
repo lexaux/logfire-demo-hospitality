@@ -18,7 +18,9 @@ class Ticket(Base):
     subject: Mapped[str] = mapped_column(String(256), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     submitted_by: Mapped[str] = mapped_column(String(128), default="demo-user")
-    pms_system: Mapped[str] = mapped_column(String(32), nullable=False)  # mews|cloudbeds|hostaway
+    # DB column kept as `pms_system` for historical reasons; Python attribute
+    # is `integration`. Values: stripe | twilio | sendgrid.
+    integration: Mapped[str] = mapped_column("pms_system", String(32), nullable=False)
     status: Mapped[str] = mapped_column(String(32), default="open")  # open|resolved|escalated
 
     # AI-generated fields

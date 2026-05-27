@@ -3,162 +3,294 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hospitality Integration Support</title>
+<title>Support Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+  :root {
+    --pink: #E520E9;
+    --pink-dark: #B819BB;
+    --pink-soft: #fce5fc;
+    --ink: #1a1d29;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --bg: #fafafa;
+    --card: #ffffff;
+    --ok: #16a34a;
+    --warn: #d97706;
+    --err: #dc2626;
+  }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f7fa; color: #1a1a2e; line-height: 1.6; }
-  .container { max-width: 900px; margin: 0 auto; padding: 20px; }
-  h1 { font-size: 1.5rem; margin-bottom: 4px; }
-  .subtitle { color: #666; font-size: 0.9rem; margin-bottom: 20px; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .container { max-width: 720px; margin: 0 auto; padding: 20px 24px 32px; }
+  .header { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+  .header-text { display: flex; flex-direction: column; }
+  .brand-name { font-weight: 600; font-size: 0.82rem; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  h1 { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.02em; margin-top: 2px; }
+  .subtitle { color: var(--muted); font-size: 0.85rem; margin-bottom: 14px; }
+  .logo-wrap { width: 48px; height: 48px; flex-shrink: 0; perspective: 600px; }
+  .logo { width: 100%; height: 100%; animation: tilt-y 3.6s ease-in-out infinite alternate; transform-style: preserve-3d; transform-origin: 50% 50%; filter: drop-shadow(0 3px 8px rgba(229, 32, 233, 0.3)); }
+  .logo-wrap:hover .logo { animation-duration: 1.4s; }
+  @keyframes tilt-y {
+    from { transform: rotateY(-55deg); }
+    to   { transform: rotateY( 55deg); }
+  }
 
   /* Tabs */
-  .tabs { display: flex; gap: 0; margin-bottom: 20px; border-bottom: 2px solid #e0e0e0; }
-  .tab { padding: 10px 24px; cursor: pointer; border: none; background: none; font-size: 0.95rem; color: #666; border-bottom: 2px solid transparent; margin-bottom: -2px; }
-  .tab.active { color: #4361ee; border-bottom-color: #4361ee; font-weight: 600; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 14px; border-bottom: 1px solid var(--line); }
+  .tab {
+    padding: 6px 14px; cursor: pointer; border: none; background: none;
+    font-size: 0.85rem; color: var(--muted); border-bottom: 2px solid transparent;
+    margin-bottom: -1px; font-family: inherit; font-weight: 500;
+  }
+  .tab:hover { color: var(--ink); }
+  .tab.active { color: var(--pink); border-bottom-color: var(--pink); font-weight: 600; }
   .tab-content { display: none; }
   .tab-content.active { display: block; }
 
   /* Form */
-  .form-group { margin-bottom: 16px; }
-  label { display: block; font-weight: 600; margin-bottom: 4px; font-size: 0.9rem; }
-  select, input, textarea { width: 100%; padding: 10px 12px; border: 1px solid #d0d5dd; border-radius: 8px; font-size: 0.95rem; font-family: inherit; }
-  textarea { min-height: 100px; resize: vertical; }
-  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  button.submit { background: #4361ee; color: white; border: none; padding: 12px 28px; border-radius: 8px; font-size: 1rem; cursor: pointer; font-weight: 600; }
-  button.submit:hover { background: #3a56d4; }
-  button.submit:disabled { background: #a0a0a0; cursor: not-allowed; }
+  .ask-form { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 6px; transition: border-color 0.15s; }
+  .ask-form:focus-within { border-color: var(--pink); box-shadow: 0 0 0 4px var(--pink-soft); }
+  textarea {
+    width: 100%; padding: 12px 14px; border: none; outline: none;
+    font-size: 0.95rem; font-family: inherit; color: var(--ink);
+    resize: none; min-height: 68px; background: transparent;
+  }
+  textarea::placeholder { color: #9ca3af; }
+  .ask-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 10px 6px 14px; }
+  .hint { font-size: 0.75rem; color: var(--muted); }
+  button.submit {
+    background: var(--pink); color: white; border: none;
+    padding: 6px 16px; border-radius: 8px; font-size: 0.85rem;
+    cursor: pointer; font-weight: 600; font-family: inherit;
+    transition: background 0.15s;
+  }
+  button.submit:hover:not(:disabled) { background: var(--pink-dark); }
+  button.submit:disabled { background: #d1d5db; cursor: not-allowed; }
+
+  .examples { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .example-chip {
+    font-size: 0.78rem; padding: 4px 10px; border-radius: 999px;
+    background: var(--card); border: 1px solid var(--line);
+    color: var(--muted); cursor: pointer; transition: all 0.15s;
+    font-family: inherit;
+  }
+  .example-chip:hover { border-color: var(--pink); color: var(--pink); background: var(--pink-soft); }
 
   /* Result card */
-  .result-card { background: white; border-radius: 12px; padding: 24px; margin-top: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-  .result-card h3 { margin-bottom: 12px; }
-  .badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
-  .badge { padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
-  .badge.category { background: #e8f0fe; color: #1a73e8; }
-  .badge.priority-P1 { background: #fce8e6; color: #d93025; }
-  .badge.priority-P2 { background: #fef7e0; color: #e37400; }
-  .badge.priority-P3 { background: #e6f4ea; color: #137333; }
-  .badge.confidence-high { background: #e6f4ea; color: #137333; }
-  .badge.confidence-medium { background: #fef7e0; color: #e37400; }
-  .badge.confidence-low { background: #fce8e6; color: #d93025; }
-  .badge.escalation { background: #fce8e6; color: #d93025; }
-  .resolution-text { background: #f8f9fa; padding: 16px; border-radius: 8px; margin-bottom: 12px; }
-  .meta { font-size: 0.85rem; color: #666; }
-  .meta span { margin-right: 16px; }
+  .result-card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 12px; padding: 16px 18px; margin-top: 14px;
+  }
+  .result-card h3 { margin-bottom: 10px; font-size: 0.98rem; font-weight: 600; letter-spacing: -0.01em; }
+  .badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .badge {
+    padding: 3px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 600;
+    text-transform: lowercase; letter-spacing: 0.01em;
+  }
+  .badge.category { background: var(--pink-soft); color: var(--pink-dark); }
+  .badge.priority-P1 { background: #fee2e2; color: var(--err); }
+  .badge.priority-P2 { background: #fef3c7; color: var(--warn); }
+  .badge.priority-P3 { background: #dcfce7; color: var(--ok); }
+  .badge.confidence-high { background: #dcfce7; color: var(--ok); }
+  .badge.confidence-medium { background: #fef3c7; color: var(--warn); }
+  .badge.confidence-low { background: #fee2e2; color: var(--err); }
+  .badge.escalation { background: #fee2e2; color: var(--err); }
+  .resolution-text { background: var(--bg); padding: 10px 12px; border-radius: 8px; margin-bottom: 10px; font-size: 0.88rem; line-height: 1.5; }
+  .meta { font-size: 0.8rem; color: var(--muted); }
 
   /* Table */
-  .tickets-table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); table-layout: fixed; }
-  .tickets-table th { background: #f8f9fa; padding: 12px 16px; text-align: left; font-size: 0.85rem; color: #666; }
-  .tickets-table td { padding: 12px 16px; border-top: 1px solid #f0f0f0; font-size: 0.9rem; }
-  .tickets-table tr:hover { background: #f8f9fa; }
-  .empty-state { text-align: center; padding: 40px; color: #999; }
+  .tickets-table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; table-layout: fixed; }
+  .tickets-table th { background: var(--bg); padding: 12px 14px; text-align: left; font-size: 0.78rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+  .tickets-table td { padding: 12px 14px; border-top: 1px solid var(--line); font-size: 0.88rem; }
+  .tickets-table tr:hover { background: var(--bg); }
+  .empty-state { text-align: center; padding: 48px 24px; color: var(--muted); font-size: 0.9rem; }
 
   /* Loading */
-  .loading { display: none; align-items: center; gap: 8px; padding: 20px; }
+  .loading { display: none; align-items: center; gap: 10px; padding: 12px 4px; color: var(--muted); font-size: 0.85rem; }
   .loading.active { display: flex; }
-  .spinner { width: 20px; height: 20px; border: 3px solid #e0e0e0; border-top-color: #4361ee; border-radius: 50%; animation: spin 0.8s linear infinite; }
+  .spinner { width: 18px; height: 18px; border: 2px solid var(--line); border-top-color: var(--pink); border-radius: 50%; animation: spin 0.8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* Similar tickets */
-  .similar-section { margin-top: 12px; border-top: 1px solid #e0e0e0; padding-top: 8px; }
-  .similar-header { cursor: pointer; font-weight: 600; font-size: 0.9rem; color: #4361ee; padding: 4px 0; }
-  .similar-header::before { content: '\25b6  '; font-size: 0.7rem; }
+  /* Similar */
+  .similar-section { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; }
+  .similar-header { cursor: pointer; font-weight: 600; font-size: 0.85rem; color: var(--pink); padding: 4px 0; }
+  .similar-header::before { content: '\25b6  '; font-size: 0.65rem; }
   .similar-section.open .similar-header::before { content: '\25bc  '; }
   .similar-body { display: none; margin-top: 8px; }
   .similar-section.open .similar-body { display: block; }
-  .similar-card { background: #f8f9fa; border-radius: 8px; padding: 12px; margin-bottom: 8px; border-left: 3px solid #4361ee; }
-  .similar-card-header { margin-bottom: 8px; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .similar-card .resolution-text { font-size: 0.85rem; padding: 8px 12px; }
+  .similar-card { background: var(--bg); border-radius: 10px; padding: 12px; margin-bottom: 8px; border-left: 3px solid var(--pink); }
+  .similar-card-header { margin-bottom: 8px; font-size: 0.88rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
   .expandable { cursor: pointer; }
   .detail-row { display: none; }
   .detail-row.active { display: table-row; }
-  .detail-row td { background: #f8f9fa; word-wrap: break-word; }
-  .about { background: #eef2ff; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; font-size: 0.9rem; color: #444; line-height: 1.5; cursor: pointer; }
-  .about p { margin: 0; }
+  .detail-row td { background: var(--bg); word-wrap: break-word; }
+
+  /* Feedback */
+  .feedback { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--muted); }
+  .feedback button {
+    background: var(--card); border: 1px solid var(--line); border-radius: 6px;
+    padding: 3px 10px; cursor: pointer; font-size: 0.9rem; transition: all 0.15s;
+  }
+  .feedback button:hover:not(:disabled) { border-color: var(--pink); background: var(--pink-soft); }
+  .feedback button.selected { background: var(--pink); color: white; border-color: var(--pink); }
+  .feedback button:disabled { cursor: default; opacity: 0.5; }
+  .feedback .ack { color: var(--ok); font-weight: 500; }
 </style>
 </head>
 <body>
 <div class="container">
-  <h1>Hospitality Integration Support</h1>
-  <p class="subtitle">AI-powered integration issue resolution</p>
-
-  <div class="about" onclick="const d=this.querySelector('details'); d.open=!d.open;" >
-    <details onclick="event.stopPropagation()">
-      <summary>This tool helps support engineers and CSM reps diagnose issues between Property Management Systems (Mews, Cloudbeds, Hostaway) and our guest experience platform.</summary>
-      <p style="margin: 8px 0 0;">Describe a problem, and a PydanticAI agent uses four tools to investigate:</p>
-      <ul style="margin: 6px 0 0 18px; padding: 0; font-size: 0.85rem;">
-        <li><b>search_integration_docs</b> &mdash; searches PMS integration docs for relevant info</li>
-        <li><b>check_pms_status</b> &mdash; checks live vendor system status via HTTP</li>
-        <li><b>find_similar_tickets</b> &mdash; queries the DB for similar resolved tickets</li>
-        <li><b>get_escalation_context</b> &mdash; retrieves SLA and escalation rules for the PMS</li>
-      </ul>
-      <p style="margin: 10px 0 0; font-size: 0.85rem;">Try a sample ticket:
-        <a href="#" onclick="prefill('mews','Webhook firing twice','Every time a reservation is updated in Mews, we receive two webhook events instead of one. This is causing duplicate processing and double-charging guests for add-ons.');return false">Mews duplicate webhook</a> &middot;
-        <a href="#" onclick="prefill('hostaway','Webhook events not arriving','We stopped receiving webhook events from Hostaway about 2 hours ago. No errors in our logs but guest check-in messages are not being sent.');return false">Hostaway webhooks down</a> &middot;
-        <a href="#" onclick="prefill('cloudbeds','OTA reservation missing guest address','Reservations coming through Expedia via Cloudbeds are missing the guest address field. Other OTA channels seem fine. This affects our pre-arrival communication workflow.');return false">Cloudbeds missing fields</a>
-      </p>
-    </details>
+  <div class="header">
+    <div class="logo-wrap" aria-hidden="true">
+      <svg class="logo" viewBox="0 0 140 122" xmlns="http://www.w3.org/2000/svg">
+        <path fill="#E520E9" d="M137.385 90.65 73.515 2.075c-2.01-2.765-6.645-2.765-8.635 0L1.01 90.65a5.335 5.335 0 0 0 2.65 8.175l63.87 20.91h.01a5.303 5.303 0 0 0 3.3 0h.01l63.87-20.91a5.278 5.278 0 0 0 3.4-3.415 5.263 5.263 0 0 0-.75-4.76h.015ZM69.2 14.28l25.6 35.505-23.94-7.835c-.185-.06-.38-.05-.565-.095a3.502 3.502 0 0 0-.55-.09c-.185-.025-.36-.095-.545-.095-.185 0-.355.07-.54.095a4.245 4.245 0 0 0-.55.09c-.19.035-.385.035-.555.095L43.76 49.74l-.15.05 25.6-35.51h-.01ZM33.03 64.45l27.87-9.13 2.975-.97v52.99l-49.97-16.365L33.03 64.45Zm41.5 42.88V54.35l30.845 10.1L124.5 90.96l-49.975 16.37h.005Z"/>
+      </svg>
+    </div>
+    <div class="header-text">
+      <span class="brand-name">Support Agent</span>
+      <h1>How can we help?</h1>
+    </div>
   </div>
+
+  <p class="subtitle">Describe your issue. An AI agent will investigate and respond.</p>
 
   <div class="tabs">
-    <button class="tab active" data-tab="submit">Submit Ticket</button>
-    <button class="tab" data-tab="recent">Recent Tickets</button>
-    <button class="tab" data-tab="resolved">Past Resolutions</button>
+    <button class="tab active" data-tab="submit">Ask</button>
+    <button class="tab" data-tab="recent">Recent</button>
+    <button class="tab" data-tab="resolved">History</button>
   </div>
 
-  <!-- Submit Tab -->
   <div id="submit" class="tab-content active">
     <form id="ticket-form">
-      <div class="form-group">
-        <label for="pms">PMS System</label>
-        <select id="pms" required>
-          <option value="">Select PMS...</option>
-          <option value="mews">Mews</option>
-          <option value="cloudbeds">Cloudbeds</option>
-          <option value="hostaway">Hostaway</option>
-        </select>
+      <div class="ask-form">
+        <textarea id="prompt" placeholder="What's going on?" required minlength="10"></textarea>
+        <div class="ask-row">
+          <span class="hint">Cmd/Ctrl + Enter to submit</span>
+          <button type="submit" class="submit" id="submit-btn">Ask</button>
+        </div>
       </div>
-      <div class="form-group">
-        <label for="subject">Subject</label>
-        <input type="text" id="subject" placeholder="Brief description of the issue" required minlength="5">
-      </div>
-      <div class="form-group">
-        <label for="description">Description</label>
-        <textarea id="description" placeholder="Describe the integration issue in detail..." required minlength="10"></textarea>
-      </div>
-      <button type="submit" class="submit" id="submit-btn">Submit Ticket</button>
     </form>
+
+    <div class="examples">
+      <button type="button" class="example-chip" data-example="Every time our worker retries a POST to /v1/payment_intents on Stripe with the same idempotency key, we receive two charge.succeeded webhooks. This is double-counting revenue in our reporting.">Duplicate Stripe webhooks</button>
+      <button type="button" class="example-chip" data-example="Twilio Verify OTP SMS messages are arriving 2–3 minutes late for Brazilian numbers during peak hours. US and EU numbers are fine. Customers are abandoning login.">Twilio OTP delay</button>
+      <button type="button" class="example-chip" data-example="Our SendGrid event webhook handler started returning 401 on roughly 10% of events. Same signing secret as before. The failing messages all contain emoji in the subject line.">SendGrid signature 401</button>
+    </div>
 
     <div class="loading" id="loading">
       <div class="spinner"></div>
-      <span>AI agent investigating...</span>
+      <span>Investigating…</span>
     </div>
 
     <div id="result"></div>
   </div>
 
-  <!-- Recent Tickets Tab -->
   <div id="recent" class="tab-content">
     <div id="tickets-list"></div>
   </div>
 
-  <!-- Past Resolutions Tab -->
   <div id="resolved" class="tab-content">
     <div id="resolved-list"></div>
   </div>
 </div>
 
-<script>
-function prefill(pms, subject, description) {
-  document.getElementById('pms').value = pms;
-  document.getElementById('subject').value = subject;
-  document.getElementById('description').value = description;
-  // Switch to submit tab
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-  document.querySelector('[data-tab="submit"]').classList.add('active');
-  document.getElementById('submit').classList.add('active');
+<script type="module">
+// --- Browser OpenTelemetry: emits a `feedback` span as a child of the agent's `support_ticket_resolution` span.
+// Token is intentionally public for this demo; in prod, vend short-lived tokens server-side.
+import { trace, ROOT_CONTEXT, SpanKind } from 'https://esm.sh/@opentelemetry/api@1.9.0';
+import { WebTracerProvider } from 'https://esm.sh/@opentelemetry/sdk-trace-web@1.30.1';
+import { BatchSpanProcessor } from 'https://esm.sh/@opentelemetry/sdk-trace-base@1.30.1';
+import { OTLPTraceExporter } from 'https://esm.sh/@opentelemetry/exporter-trace-otlp-http@0.57.2';
+import { Resource } from 'https://esm.sh/@opentelemetry/resources@1.30.1';
+
+let tracer = null;
+
+async function initTelemetry() {
+  try {
+    const cfg = await (await fetch('/api/config')).json();
+    if (!cfg.logfire_write_token) {
+      console.warn('LOGFIRE_BROWSER_WRITE_TOKEN not set — feedback spans will not be emitted.');
+      return;
+    }
+    const provider = new WebTracerProvider({
+      resource: new Resource({ 'service.name': 'support-agent-frontend' }),
+    });
+    provider.addSpanProcessor(new BatchSpanProcessor(new OTLPTraceExporter({
+      url: cfg.logfire_otlp_endpoint,
+      headers: { Authorization: cfg.logfire_write_token },
+    })));
+    provider.register();
+    tracer = trace.getTracer('support-agent-frontend');
+  } catch (e) {
+    console.warn('Failed to init browser telemetry:', e);
+  }
 }
+initTelemetry();
+
+function emitFeedback(value, ticket) {
+  if (!tracer) return;
+  // Append to the original agent trace: feedback span is a child of the
+  // `support_ticket_resolution` span. OTel groups by trace_id; the parent
+  // having already ended is fine. Timeline will show a gap.
+  let parentCtx = ROOT_CONTEXT;
+  if (ticket.trace_id && ticket.span_id) {
+    parentCtx = trace.setSpanContext(ROOT_CONTEXT, {
+      traceId: ticket.trace_id,
+      spanId: ticket.span_id,
+      traceFlags: 1,
+      isRemote: true,
+    });
+  }
+  const span = tracer.startSpan('feedback', {
+    kind: SpanKind.CLIENT,
+    attributes: {
+      'feedback.value': value,
+      'ticket.id': ticket.id,
+      'ticket.integration': ticket.integration || '',
+      'ticket.ai_category': ticket.ai_category || '',
+      'ticket.ai_priority': ticket.ai_priority || '',
+    },
+  }, parentCtx);
+  span.end();
+}
+
+// Detect which integration the user is asking about; the backend needs a
+// value but we don't want to expose the choice in the UI. Default: stripe.
+function detectIntegration(text) {
+  const lower = text.toLowerCase();
+  for (const integ of ['stripe', 'twilio', 'sendgrid']) {
+    if (lower.includes(integ)) return integ;
+  }
+  return 'stripe';
+}
+
+function deriveSubject(text) {
+  const firstLine = text.split('\n')[0].trim();
+  return firstLine.length > 80 ? firstLine.slice(0, 77) + '…' : firstLine;
+}
+
+// Example chips
+document.querySelectorAll('.example-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.getElementById('prompt').value = chip.dataset.example;
+    document.getElementById('prompt').focus();
+  });
+});
+
+// Cmd/Ctrl+Enter to submit
+document.getElementById('prompt').addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+    document.getElementById('ticket-form').requestSubmit();
+  }
+});
 
 // Tab switching
 document.querySelectorAll('.tab').forEach(tab => {
@@ -172,21 +304,24 @@ document.querySelectorAll('.tab').forEach(tab => {
   });
 });
 
-// Submit ticket
+// Submit
 document.getElementById('ticket-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const btn = document.getElementById('submit-btn');
   const loading = document.getElementById('loading');
   const resultDiv = document.getElementById('result');
 
+  const text = document.getElementById('prompt').value.trim();
+  if (text.length < 10) return;
+
   btn.disabled = true;
   loading.classList.add('active');
   resultDiv.innerHTML = '';
 
   const body = {
-    subject: document.getElementById('subject').value,
-    description: document.getElementById('description').value,
-    pms_system: document.getElementById('pms').value,
+    subject: deriveSubject(text),
+    description: text,
+    integration: detectIntegration(text),
   };
 
   try {
@@ -201,8 +336,9 @@ document.getElementById('ticket-form').addEventListener('submit', async (e) => {
     }
     const ticket = await res.json();
     resultDiv.innerHTML = renderResult(ticket);
+    wireFeedback(ticket);
   } catch (err) {
-    resultDiv.innerHTML = `<div class="result-card"><p style="color:#d93025">Error: ${err.message}</p></div>`;
+    resultDiv.innerHTML = `<div class="result-card"><p style="color:var(--err)">Error: ${err.message}</p></div>`;
   } finally {
     btn.disabled = false;
     loading.classList.remove('active');
@@ -213,24 +349,26 @@ function renderResult(t) {
   const similarHtml = (t.similar_ticket_ids && t.similar_ticket_ids.length)
     ? `<div class="similar-section">
         <div class="similar-header" onclick="this.parentElement.classList.toggle('open')">
-          Similar tickets (${t.similar_ticket_ids.length})
+          Related (${t.similar_ticket_ids.length})
         </div>
-        <div class="similar-body" id="similar-${t.id}">Loading...</div>
+        <div class="similar-body" id="similar-${t.id}">Loading…</div>
       </div>`
     : '';
 
   const html = `
     <div class="result-card">
-      <h3>Ticket #${t.id} — ${t.subject}</h3>
+      <h3>${t.subject}</h3>
       <div class="badges">
         <span class="badge category">${t.ai_category}</span>
         <span class="badge priority-${t.ai_priority}">${t.ai_priority}</span>
         <span class="badge confidence-${t.ai_confidence}">${t.ai_confidence} confidence</span>
-        ${t.escalation_recommended ? '<span class="badge escalation">Escalation Recommended</span>' : ''}
+        ${t.escalation_recommended ? '<span class="badge escalation">escalate</span>' : ''}
       </div>
       <div class="resolution-text">${t.ai_resolution_suggestion}</div>
-      <div class="meta">
-        <span>Docs: ${(t.source_docs_referenced || []).join(', ') || 'none'}</span>
+      <div class="feedback" id="feedback-${t.id}">
+        <span>Was this helpful?</span>
+        <button data-value="thumbs_up" aria-label="thumbs up">👍</button>
+        <button data-value="thumbs_down" aria-label="thumbs down">👎</button>
       </div>
       ${similarHtml}
     </div>`;
@@ -239,6 +377,25 @@ function renderResult(t) {
     loadSimilarTickets(t.id, t.similar_ticket_ids);
   }
   return html;
+}
+
+function wireFeedback(ticket) {
+  const container = document.getElementById(`feedback-${ticket.id}`);
+  if (!container) return;
+  container.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const value = btn.dataset.value;
+      emitFeedback(value, ticket);
+      container.querySelectorAll('button').forEach(b => {
+        b.disabled = true;
+        if (b === btn) b.classList.add('selected');
+      });
+      const ack = document.createElement('span');
+      ack.className = 'ack';
+      ack.textContent = 'Thanks — feedback recorded.';
+      container.appendChild(ack);
+    });
+  });
 }
 
 async function loadSimilarTickets(ticketId, ids) {
@@ -259,7 +416,7 @@ async function loadSimilarTickets(ticketId, ids) {
     `).join('');
   } catch (err) {
     const container = document.getElementById(`similar-${ticketId}`);
-    if (container) container.innerHTML = 'Failed to load similar tickets.';
+    if (container) container.innerHTML = 'Failed to load.';
   }
 }
 
@@ -269,19 +426,18 @@ async function loadTickets() {
     const res = await fetch('/api/tickets');
     const tickets = await res.json();
     if (tickets.length === 0) {
-      container.innerHTML = '<div class="empty-state">No tickets submitted yet. Submit one to get started!</div>';
+      container.innerHTML = '<div class="empty-state">Nothing here yet.</div>';
       return;
     }
     container.innerHTML = `
       <table class="tickets-table">
         <thead><tr>
-          <th>#</th><th>Subject</th><th>PMS</th><th>Category</th><th>Priority</th><th>Confidence</th>
+          <th style="width:6%">#</th><th style="width:54%">Subject</th><th style="width:20%">Category</th><th style="width:10%">Priority</th><th style="width:10%">Confidence</th>
         </tr></thead>
         <tbody>
           ${tickets.map(t => `<tr>
             <td>${t.id}</td>
             <td>${t.subject}</td>
-            <td>${t.pms_system}</td>
             <td><span class="badge category">${t.ai_category || '-'}</span></td>
             <td><span class="badge priority-${t.ai_priority}">${t.ai_priority || '-'}</span></td>
             <td><span class="badge confidence-${t.ai_confidence}">${t.ai_confidence || '-'}</span></td>
@@ -289,7 +445,7 @@ async function loadTickets() {
         </tbody>
       </table>`;
   } catch (err) {
-    container.innerHTML = `<div class="empty-state">Error loading tickets: ${err.message}</div>`;
+    container.innerHTML = `<div class="empty-state">Error: ${err.message}</div>`;
   }
 }
 
@@ -299,30 +455,29 @@ async function loadResolved() {
     const res = await fetch('/api/tickets/resolved');
     const tickets = await res.json();
     if (tickets.length === 0) {
-      container.innerHTML = '<div class="empty-state">No past resolutions found.</div>';
+      container.innerHTML = '<div class="empty-state">No history yet.</div>';
       return;
     }
     container.innerHTML = `
       <table class="tickets-table">
         <thead><tr>
-          <th style="width:5%">#</th><th style="width:40%">Subject</th><th style="width:12%">PMS</th><th style="width:15%">Category</th><th style="width:13%">Priority</th><th style="width:15%">Confidence</th>
+          <th style="width:6%">#</th><th style="width:50%">Subject</th><th style="width:18%">Category</th><th style="width:13%">Priority</th><th style="width:13%">Confidence</th>
         </tr></thead>
         <tbody>
           ${tickets.map(t => `<tr class="expandable" onclick="this.nextElementSibling.classList.toggle('active')">
             <td>${t.id}</td>
             <td>${t.subject}</td>
-            <td>${t.pms_system}</td>
             <td><span class="badge category">${t.ai_category || '-'}</span></td>
             <td><span class="badge priority-${t.ai_priority}">${t.ai_priority || '-'}</span></td>
             <td><span class="badge confidence-${t.ai_confidence}">${t.ai_confidence || '-'}</span></td>
           </tr>
           <tr class="detail-row">
-            <td colspan="6"><div class="resolution-text">${t.ai_resolution_suggestion || '-'}</div></td>
+            <td colspan="5"><div class="resolution-text">${t.ai_resolution_suggestion || '-'}</div></td>
           </tr>`).join('')}
         </tbody>
       </table>`;
   } catch (err) {
-    container.innerHTML = `<div class="empty-state">Error loading resolutions: ${err.message}</div>`;
+    container.innerHTML = `<div class="empty-state">Error: ${err.message}</div>`;
   }
 }
 </script>
