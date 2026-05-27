@@ -6,6 +6,7 @@ from pathlib import Path
 import httpx
 import logfire
 import yaml
+from braintrust.wrappers.pydantic_ai import setup_pydantic_ai
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -36,6 +37,13 @@ logfire.instrument_httpx()
 logfire.instrument_sqlite3()
 logfire.instrument_sqlalchemy()
 logfire.instrument_pydantic_ai()
+
+# Braintrust tracing: patches Pydantic AI to emit native Braintrust spans for
+# every agent run, tool call, and LLM request. Independent of the Logfire OTel
+# pipeline above, so both observability backends receive the same agent runs.
+# Project name is set here (not via env); no-ops gracefully if BRAINTRUST_API_KEY
+# is unset.
+setup_pydantic_ai(project_name="pydantic-ai-test")
 
 
 @asynccontextmanager

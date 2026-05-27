@@ -23,8 +23,8 @@ check: ## Lint + format check
 test: ## Run smoke tests
 	uv run pytest tests/ -v
 
-evals: ## Run evals against curated Logfire dataset (SOURCE=static|curated|both, MODEL=..., TAG=...)
-	MODEL_NAME=$(or $(MODEL),$(MODEL_NAME),gpt-4o) uv run python -m evals.run_evals --source $(or $(SOURCE),curated) $(if $(TAG),--tag $(TAG))
+evals: ## Run evals (SOURCE=static|curated|both, MODEL=..., TAG=...). Default: static — curated requires the Logfire dataset named in evals/curated.py to exist.
+	MODEL_NAME=$(or $(MODEL),$(MODEL_NAME),gpt-4o) uv run python -m evals.run_evals --source $(or $(SOURCE),static) $(if $(TAG),--tag $(TAG))
 
 push-curated: ## Push the local static dataset to Logfire as the curated dataset (NAME=... to override)
 	uv run python -m evals.push_curated $(if $(NAME),--name $(NAME))
