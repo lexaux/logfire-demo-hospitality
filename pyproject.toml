@@ -14,6 +14,7 @@ dependencies = [
     "httpx>=0.28.0",
     "pyyaml>=6.0.0",
     "logfire[datasets,fastapi,https,httpx,sqlalchemy,sqlite3]>=4.32.0",
+    "openlit>=1.42.0",
 ]
 
 [dependency-groups]

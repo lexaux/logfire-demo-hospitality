@@ -1,4 +1,4 @@
-.PHONY: help run format check test evals reset-db
+.PHONY: help run run-grafana format check test evals push-curated reset-db
 .DEFAULT_GOAL := help
 
 help: ## Show available commands
@@ -9,6 +9,14 @@ run: ## Start both dev servers (support agent on :8000, service-status on :8001)
 	STATUS_PID=$$!; \
 	trap "kill $$STATUS_PID 2>/dev/null" INT TERM; \
 	uv run uvicorn src.main:app --port 8000 --reload; \
+	kill $$STATUS_PID 2>/dev/null; \
+	wait $$STATUS_PID 2>/dev/null || true
+
+run-grafana: ## Start both dev servers with Logfire disabled (OpenLIT → Grafana only)
+	@LOGFIRE_DISABLED=1 uv run uvicorn src.status_service_app:app --port 8001 --reload & \
+	STATUS_PID=$$!; \
+	trap "kill $$STATUS_PID 2>/dev/null" INT TERM; \
+	LOGFIRE_DISABLED=1 uv run uvicorn src.main:app --port 8000 --reload; \
 	kill $$STATUS_PID 2>/dev/null; \
 	wait $$STATUS_PID 2>/dev/null || true
 

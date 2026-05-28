@@ -11,6 +11,19 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from logfire import VariablesOptions
 
+import os
+
+from dotenv import load_dotenv
+
+# Load .env BEFORE openlit.init() so OTEL_EXPORTER_OTLP_ENDPOINT /
+# OTEL_EXPORTER_OTLP_HEADERS are visible to the OpenLIT exporter.
+load_dotenv()
+
+import openlit
+import uvicorn
+
+openlit.init()
+
 from src.agent import TicketDeps, format_ticket_prompt, support_agent
 from src.config import settings
 from src.database import async_session, init_db
@@ -25,17 +38,19 @@ escalation_configs: list[EscalationEntry] = []
 # Set by tests/evals to route the agent's status-service HTTP calls through ASGI
 agent_status_service_transport: httpx.AsyncBaseTransport | None = None
 
-logfire.configure(
-    environment="local",
-    service_name="tkt_agent",
-    distributed_tracing=True,
-    variables=VariablesOptions(),
-    # advanced=logfire.AdvancedOptions(base_url='http://localhost:8080')
-)
-logfire.instrument_httpx()
-logfire.instrument_sqlite3()
-logfire.instrument_sqlalchemy()
-logfire.instrument_pydantic_ai()
+LOGFIRE_DISABLED = os.getenv("LOGFIRE_DISABLED") == "1"
+if not LOGFIRE_DISABLED:
+    logfire.configure(
+        environment="local",
+        service_name="tkt_agent",
+        distributed_tracing=True,
+        variables=VariablesOptions(),
+        # advanced=logfire.AdvancedOptions(base_url='http://localhost:8080')
+    )
+    # logfire.instrument_httpx()
+    # logfire.instrument_sqlite3()
+    # logfire.instrument_sqlalchemy()
+    # logfire.instrument_pydantic_ai()
 
 
 @asynccontextmanager
@@ -62,7 +77,18 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Hospitality Integration Support", lifespan=lifespan)
 
-logfire.instrument_fastapi(app=app)
+if not LOGFIRE_DISABLED:
+    logfire.instrument_fastapi(app=app)
+else:
+    # Logfire is off, but OpenLIT only instruments LLM libraries. Bring in the
+    # generic OTel instrumentation so HTTP/DB spans still land in Grafana.
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+    from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+    from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+
+    FastAPIInstrumentor.instrument_app(app)
+    HTTPXClientInstrumentor().instrument()
+    SQLAlchemyInstrumentor().instrument()
 
 
 @app.post("/api/tickets", response_model=TicketResponse)
@@ -195,3 +221,28 @@ async def serve_index():
 
 if frontend_dir.exists():
     app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend")
+
+
+if __name__ == "__main__":
+
+    # The 'All' evaluator runs checks for Hallucination, Bias, and Toxicity
+    evals = openlit.evals.All(
+        provider="openai",
+        # collect_metrics=True
+    )
+    contexts = [
+        "Einstein won the Nobel Prize for his discovery of the photoelectric effect in 1921"
+    ]
+    prompt = "When and why did Einstein win the Nobel Prize?"
+    text = "Einstein won the Nobel Prize in 1969 for his discovery of the photoelectric effect"
+    result = evals.measure(prompt=prompt, contexts=contexts, text=text)
+    print("openlit eval result:", result)
+
+    print("Starting Integration Support Assistant on http://127.0.0.1:8000")
+    print("  - Frontend:       /")
+    print("  - Submit ticket:  POST /api/tickets")
+    print("  - Recent tickets: GET  /api/tickets")
+    print("  - Config:         GET  /api/config")
+    print("Note: upstream status microservice is NOT started here.")
+    print("      Use `make run` to start both (this app on :8000, status on :8001).")
+    uvicorn.run("src.main:app", host="127.0.0.1", port=8000, reload=True)

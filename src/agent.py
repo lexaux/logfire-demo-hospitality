@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+from contextlib import contextmanager
 from dataclasses import dataclass
 from functools import cache
 
@@ -60,8 +62,27 @@ Be precise. Cite specific doc sections and bug IDs when available. If the issue 
 """
 
 
+class _FallbackPromptVar:
+    """Stand-in for `logfire.var(...).get()` used when LOGFIRE_DISABLED=1.
+
+    Without `logfire.configure()`, fetching a managed variable will either
+    error or return undefined behavior. This shim mimics the small slice of
+    the API the system prompt callback uses (`.get()` returning a context
+    manager that yields an object with `.value`).
+    """
+
+    class _Resolved:
+        value = SYSTEM_PROMPT_FALLBACK
+
+    @contextmanager
+    def get(self):
+        yield self._Resolved()
+
+
 @cache
 def _prompt_var():
+    if os.getenv("LOGFIRE_DISABLED") == "1":
+        return _FallbackPromptVar()
     var = logfire.var(name="prompt__new_prompt", default=SYSTEM_PROMPT_FALLBACK)
     var.refresh_sync(force=True)
     return var
