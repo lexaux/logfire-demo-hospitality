@@ -1,4 +1,4 @@
-.PHONY: help run format check test evals reset-db
+.PHONY: help run format check test evals bt-evals reset-db
 .DEFAULT_GOAL := help
 
 help: ## Show available commands
@@ -25,6 +25,9 @@ test: ## Run smoke tests
 
 evals: ## Run evals (SOURCE=static|curated|both, MODEL=..., TAG=...). Default: static — curated requires the Logfire dataset named in evals/curated.py to exist.
 	MODEL_NAME=$(or $(MODEL),$(MODEL_NAME),gpt-4o) uv run python -m evals.run_evals --source $(or $(SOURCE),static) $(if $(TAG),--tag $(TAG))
+
+bt-evals: ## Run the Braintrust eval (MODEL=... overrides .env). Logs an experiment named static-<model>. Needs BRAINTRUST_API_KEY in .env.
+	$(if $(MODEL),MODEL_NAME=$(MODEL)) uv run --env-file .env braintrust eval evals/braintrust_eval.py
 
 push-curated: ## Push the local static dataset to Logfire as the curated dataset (NAME=... to override)
 	uv run python -m evals.push_curated $(if $(NAME),--name $(NAME))

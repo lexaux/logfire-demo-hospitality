@@ -15,6 +15,7 @@ dependencies = [
     "pyyaml>=6.0.0",
     "logfire[datasets,fastapi,https,httpx,sqlalchemy,sqlite3]>=4.32.0",
     "braintrust>=0.22.1",
+    "autoevals>=0.2.0",
 ]
 
 [dependency-groups]
