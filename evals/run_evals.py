@@ -22,9 +22,9 @@ from src.config import settings
 from src.knowledge import build_doc_chunks, load_integration_docs
 from src.main import app
 from src.models import Base
-from src.status_service_app import app as status_service_app
 from src.schemas import EscalationEntry, TicketInput, TicketResolution
 from src.seed import seed_tickets
+from src.status_service_app import app as status_service_app
 
 EVAL_BASE_URL = "http://test"
 

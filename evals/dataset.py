@@ -4,13 +4,32 @@ from __future__ import annotations
 
 from pydantic_evals import Case, Dataset
 
-from evals.evaluators import CategoryMatch, PriorityMatch, escalation_judge
+from evals.evaluators import (
+    CategoryMatch,
+    PriorityMatch,
+    ReferenceKind,
+    escalation_judge,
+    evidence_judge,
+    resolution_quality_score,
+)
 from src.llm import llm_model
 from src.schemas import TicketInput, TicketResolution
 
+# Dataset-level evaluators — run on every case.
+#   - CategoryMatch / PriorityMatch: ground-truth comparison against expected_output
+#   - escalation_judge / evidence_judge / resolution_quality_score / ReferenceKind:
+#     the same evaluators the agent runs online, so offline scores are directly
+#     comparable to the live production scores in Logfire.
 dataset = Dataset[TicketInput, TicketResolution, None](
     name="integration-support-default",
-    evaluators=[CategoryMatch(), PriorityMatch()],
+    evaluators=[
+        CategoryMatch(),
+        PriorityMatch(),
+        escalation_judge(llm_model),
+        evidence_judge(llm_model),
+        resolution_quality_score(llm_model),
+        ReferenceKind(),
+    ],
     cases=[
         # 1. Stripe webhook dropping on production traffic → sync_issue, P1, high
         # "all merchants" = outage across the integration = P1
@@ -73,7 +92,6 @@ dataset = Dataset[TicketInput, TicketResolution, None](
                 resolution_suggestion="placeholder",
                 escalation_recommended=True,
             ),
-            evaluators=(escalation_judge(llm_model),),
         ),
         # 4. Stripe duplicate charge.succeeded webhook → bug, P1, high
         # BUG-S001: idempotency key + retried POST produces dupes
@@ -135,7 +153,6 @@ dataset = Dataset[TicketInput, TicketResolution, None](
                 resolution_suggestion="placeholder",
                 escalation_recommended=True,
             ),
-            evaluators=(escalation_judge(llm_model),),
         ),
         # 7. Stripe sub-merchant split payouts → not_supported, P3, high
         Case(
@@ -175,7 +192,6 @@ dataset = Dataset[TicketInput, TicketResolution, None](
                 resolution_suggestion="placeholder",
                 escalation_recommended=True,
             ),
-            evaluators=(escalation_judge(llm_model),),
         ),
     ],
 )

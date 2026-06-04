@@ -89,9 +89,7 @@ async def test_create_ticket(client):
         "/api/tickets",
         json={
             "subject": "Test webhook issue",
-            "description": (
-                "Stripe webhook events are being delivered twice for charge.succeeded"
-            ),
+            "description": ("Stripe webhook events are being delivered twice for charge.succeeded"),
             "integration": "stripe",
         },
     )
