@@ -84,6 +84,7 @@ class TicketDeps:
     status_service_base_url: str = "http://localhost:8001"
     http_transport: httpx.AsyncBaseTransport | None = None
     status_service_transport: httpx.AsyncBaseTransport | None = None
+    system_prompt_override: str | None = None
 
 
 support_agent = Agent(
@@ -107,6 +108,10 @@ support_agent = Agent(
 
 @support_agent.system_prompt
 async def _system_prompt(ctx: RunContext[TicketDeps]) -> str:
+    if ctx.deps.system_prompt_override is not None:
+        return _render_template(
+            ctx.deps.system_prompt_override, {"integrations": INTEGRATIONS_LIST}
+        )
     with _prompt_var().get() as resolved:
         return _render_template(resolved.value, {"integrations": INTEGRATIONS_LIST})
 

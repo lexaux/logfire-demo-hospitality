@@ -1,4 +1,4 @@
-.PHONY: help run format check test evals bt-evals reset-db
+.PHONY: help run format check test evals bt-evals load reset-db
 .DEFAULT_GOAL := help
 
 help: ## Show available commands
@@ -31,6 +31,9 @@ bt-evals: ## Run the Braintrust eval (MODEL=... overrides .env). Logs an experim
 
 push-curated: ## Push the local static dataset to Logfire as the curated dataset (NAME=... to override)
 	uv run python -m evals.push_curated $(if $(NAME),--name $(NAME))
+
+load: ## Generate N agent runs across prompt variants for Braintrust classification (TOTAL=200 CONCURRENCY=4 VARIANTS=baseline,strict MODEL=...)
+	$(if $(MODEL),MODEL_NAME=$(MODEL)) uv run python -m evals.load --total $(or $(TOTAL),200) --concurrency $(or $(CONCURRENCY),4) $(if $(VARIANTS),--variants $(VARIANTS))
 
 reset-db: ## Reset database (confirms first, re-seeds on next run)
 	@echo "This will delete the database and all submitted tickets."
