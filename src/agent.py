@@ -6,6 +6,7 @@ from functools import cache
 import httpx
 import logfire
 from pydantic_ai import Agent, ModelSettings, RunContext
+from pydantic_evals.online import OnlineEvaluator, SamplingContext
 from pydantic_evals.online_capability import OnlineEvaluation
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -86,6 +87,22 @@ class TicketDeps:
     status_service_transport: httpx.AsyncBaseTransport | None = None
 
 
+def _evidence_judge_predicate(ctx: SamplingContext) -> bool:
+    """Run the evidence judge only on Stripe tickets.
+
+    `ctx.inputs` is the user-prompt string that `format_ticket_prompt` produced
+    (`"Integration: stripe\\nSubject: ..."`). Returning True dispatches the
+    evaluator; False skips it entirely (no LLM call, no result span).
+    """
+    decision = "stripe" in str(ctx.inputs).lower()
+    logfire.debug(
+        "evidence_judge sample decision",
+        decision=decision,
+        evaluator=type(ctx.evaluator).__name__,
+    )
+    return decision
+
+
 support_agent = Agent(
     llm_model,
     deps_type=TicketDeps,
@@ -95,10 +112,23 @@ support_agent = Agent(
     capabilities=[
         OnlineEvaluation(
             evaluators=[
-                escalation_judge(llm_model),
-                evidence_judge(llm_model),
-                resolution_quality_score(llm_model),
+                # Always runs — cheap (no LLM call).
                 ReferenceKind(),
+                # Always runs — primary escalation signal.
+                escalation_judge(llm_model),
+                # Scoped: only on tickets that mention stripe in the input prompt.
+                # `inputs` here is the user-prompt string `format_ticket_prompt` built,
+                # so a substring check is enough — no extra plumbing required.
+                OnlineEvaluator(
+                    evaluator=evidence_judge(llm_model),
+                    sample_rate=_evidence_judge_predicate,
+                ),
+                # Sampled: 50% of runs get a quality score. Cuts cost in half while
+                # still giving a continuous quality signal to chart over time.
+                OnlineEvaluator(
+                    evaluator=resolution_quality_score(llm_model),
+                    sample_rate=0.5,
+                ),
             ]
         )
     ],
