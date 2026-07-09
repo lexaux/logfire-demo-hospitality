@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from logfire import VariablesOptions
 
-from src.agent import TicketDeps, format_ticket_prompt, support_agent
+from src.agent import TicketDeps, _prompt_var, format_ticket_prompt, support_agent
 from src.config import settings
 from src.database import async_session, init_db
 from src.knowledge import build_doc_chunks, load_integration_docs
@@ -100,10 +100,14 @@ async def create_ticket(ticket_in: TicketCreate):
             ticket=ticket_in.model_dump(mode="json"),
         ) as ticket_span:
             try:
-                result = await support_agent.run(
-                    format_ticket_prompt(ticket.id, ticket_in),
-                    deps=deps,
-                )
+                # `with .get()` stamps `logfire.variables.prompt__new_prompt`
+                # baggage on every child span (agent + chat), which is what
+                # Logfire Optimize filters on to attribute A/B variants.
+                with _prompt_var().get():
+                    result = await support_agent.run(
+                        format_ticket_prompt(ticket.id, ticket_in),
+                        deps=deps,
+                    )
                 resolution = result.output
             except Exception as e:
                 raise HTTPException(status_code=500, detail=f"Agent error: {e}") from e

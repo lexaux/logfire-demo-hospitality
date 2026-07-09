@@ -63,9 +63,7 @@ Be precise. Cite specific doc sections and bug IDs when available. If the issue 
 
 @cache
 def _prompt_var():
-    var = logfire.var(name="prompt__new_prompt", default=SYSTEM_PROMPT_FALLBACK)
-    var.refresh_sync(force=True)
-    return var
+    return logfire.var(name="prompt__new_prompt", default=SYSTEM_PROMPT_FALLBACK)
 
 
 def _render_template(template: str, variables: dict[str, str]) -> str:

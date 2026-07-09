@@ -17,7 +17,7 @@ from pydantic_ai.messages import ModelResponse, ToolCallPart
 from pydantic_evals.dataset import set_eval_attribute
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from src.agent import TicketDeps, format_ticket_prompt, support_agent
+from src.agent import TicketDeps, _prompt_var, format_ticket_prompt, support_agent
 from src.config import settings
 from src.knowledge import build_doc_chunks, load_integration_docs
 from src.main import app
@@ -81,10 +81,11 @@ async def main(args: argparse.Namespace):
                     status_service_base_url=EVAL_BASE_URL,
                     status_service_transport=status_service_transport,
                 )
-                result = await support_agent.run(
-                    format_ticket_prompt(None, inputs),
-                    deps=deps,
-                )
+                with _prompt_var().get():
+                    result = await support_agent.run(
+                        format_ticket_prompt(None, inputs),
+                        deps=deps,
+                    )
                 tools_used = [
                     part.tool_name
                     for msg in result.all_messages()
